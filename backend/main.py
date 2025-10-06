@@ -1,0 +1,49 @@
+from fastapi import FastAPI
+from src.product.routes import router as product_router
+
+description = """
+Welcome to the E-commerce API! 🚀
+
+This API provides a comprehensive set of functionalities for managing your e-commerce platform.
+
+Key features include:
+
+- **Crud**
+	- Create, Read, Update, and Delete endpoints.
+- **Search**
+	- Find specific information with parameters and pagination.
+- **Auth**
+	- Verify user/system identity.
+	- Secure with Access and Refresh tokens.
+- **Permission**
+	- Assign roles with specific permissions.
+	- Different access levels for User/Admin.
+- **Validation**
+	- Ensure accurate and secure input data.
+
+
+For any inquiries, please contact:
+
+* Github: https://github.com/Thakur-Rohit-chauhan
+"""
+
+version = "1.0.0"
+
+app = FastAPI(
+    title="E-commerce API",
+    description=description,
+    version=version,
+    contact={
+        "name": "Rohit Chauhan",
+        "url": "https://github.com/Thakur-Rohit-chauhan",
+    },
+    swagger_ui_parameters={
+        "syntaxHighlight.theme": "monokai",
+        "layout": "BaseLayout",
+        "filter": True,
+        "tryItOutEnabled": True,
+        "onComplete": "Ok"
+    },
+)
+
+app.include_router(product_router, prefix="/products", tags=["Products"])
