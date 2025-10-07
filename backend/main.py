@@ -1,5 +1,17 @@
 from fastapi import FastAPI
 from src.product.routes import router as product_router
+from contextlib import asynccontextmanager
+from src.db.main import init_db
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Server is starting...")
+    await init_db()
+    yield
+    print("Server is shutting down...")
+
+
 
 description = """
 Welcome to the E-commerce API! 🚀
@@ -44,6 +56,7 @@ app = FastAPI(
         "tryItOutEnabled": True,
         "onComplete": "Ok"
     },
+    lifespan=lifespan
 )
 
 app.include_router(product_router, prefix="/products", tags=["Products"])

@@ -1,28 +1,55 @@
-from sqlalchemy import Boolean, Column, Integer, String, ForeignKey, Float, ARRAY, Enum
-from sqlalchemy.sql.expression import text
-from sqlalchemy.sql.sqltypes import TIMESTAMP
-from sqlalchemy.orm import relationship
-from app.db.database import Base
+from sqlmodel import SQLModel, Field, Column
+import uuid
+from typing import Optional
+import sqlalchemy.dialects.postgresql as pg
+from datetime import datetime
 
-class Product(Base):
+class Product(SQLModel, table=True):
     __tablename__ = "products"
 
-    id = Column(Integer, primary_key=True, nullable=False, unique=True, autoincrement=True)
-    title = Column(String, nullable=False)
-    description = Column(String, nullable=False)
-    price = Column(Integer, nullable=False)
-    discount_percentage = Column(Float, nullable=False)
-    rating = Column(Float, nullable=False)
-    stock = Column(Integer, nullable=False)
-    brand = Column(String, nullable=False)
-    thumbnail = Column(String, nullable=False)
-    images = Column(ARRAY(String), nullable=False)
-    is_published = Column(Boolean, server_default="True", nullable=False)
-    created_at = Column(TIMESTAMP(timezone=True), server_default=text("NOW()"), nullable=False)
+    id : uuid.UUID = Field(
+        sa_column = Column(
+            pg.UUID(as_uuid=True),
+            primary_key=True,
+            default=uuid.uuid4,
+            unique=True,
+            nullable=False
+        )
+    )
+    title : str = Field(index=True, nullable=False)
+    description : Optional[str] = Field(default=None, nullable=True)
+    price : int = Field(nullable=False)
+    discount_percentage : float = Field(nullable=False)
+    rating : float = Field(nullable=False)
+    stock : int = Field(nullable=False)
+    brand : str = Field(nullable=False)
+    thumbnail : str = Field(nullable=False)
+    images : list[str] = Field(
+        sa_column = Column(
+            pg.ARRAY(pg.TEXT),
+            nullable=False
+        )
+    )
+    created_at : datetime = Field(
+        sa_column = Column(
+            pg.TIMESTAMP(timezone=True),
+            default=datetime.utcnow,
+            nullable=False
+        )
+    )
+    updated_at : Optional[datetime] = Field(
+        sa_column = Column(
+            pg.TIMESTAMP(timezone=True),
+            default=None,
+            onupdate=datetime.utcnow,
+        ),
+        default=None
+    )
 
-    # Relationship with category
-    category_id = Column(Integer, ForeignKey("categories.id", ondelete="CASCADE"), nullable=False)
-    category = relationship("Category", back_populates="products")
+    # category_id : int = Field(nullable=False, foreign_key="categories.id")
+    # category : Optional["Category"] = Relationship(back_populates="products")
 
-    # Relationship with cart items
-    cart_items = relationship("CartItem", back_populates="product")
+    # cart_items : list["CartItem"] = Relationship(back_populates="product")
+
+def __repr__(self):
+    return f"<Product(id={self.id}, title={self.title}, price={self.price})>"

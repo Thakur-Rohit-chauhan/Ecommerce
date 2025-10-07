@@ -1,77 +1,40 @@
-from pydantic import BaseModel, validator
+
+from pydantic import BaseModel, Field
+from typing import Optional, List, Dict, Any
+import uuid
 from datetime import datetime
-from typing import List, Optional, ClassVar
-from app.schemas.categories import CategoryBase
-
-
-# Base Models
-class BaseConfig:
-    from_attributes = True
-
 
 class ProductBase(BaseModel):
-    id: int
-    title: str
-    description: Optional[str]
-    price: int
-
-    @validator("discount_percentage", pre=True)
-    def validate_discount_percentage(cls, v):
-        if v < 0 or v > 100:
-            raise ValueError("discount_percentage must be between 0 and 100")
-        return v
-
-    discount_percentage: float
-    rating: float
-    stock: int
-    brand: str
+    title: str = Field(..., max_length=100)
+    description: Optional[str] = Field(None, max_length=500)
+    price: int = Field(..., ge=0)
+    discount_percentage: float = Field(..., ge=0)
+    rating: float = Field(..., ge=0)
+    stock: int = Field(..., ge=0)
+    brand: str = Field(..., max_length=100)
     thumbnail: str
     images: List[str]
-    is_published: bool
-    created_at: datetime
     category_id: int
-    category: CategoryBase
 
-    class Config(BaseConfig):
-        pass
-
-
-# Create Product
 class ProductCreate(ProductBase):
-    id: ClassVar[int]
-    category: ClassVar[CategoryBase]
-
-    class Config(BaseConfig):
-        pass
-
-
-# Update Product
-class ProductUpdate(ProductCreate):
     pass
 
+class ProductUpdate(BaseModel):
+    title: Optional[str] = Field(None, max_length=100)
+    description: Optional[str] = Field(None, max_length=500)
+    price: Optional[int] = Field(None, ge=0)
+    discount_percentage: Optional[float] = Field(None, ge=0)
+    rating: Optional[float] = Field(None, ge=0)
+    stock: Optional[int] = Field(None, ge=0)
+    brand: Optional[str] = Field(None, max_length=100)
+    thumbnail: Optional[str] = None
+    images: Optional[List[str]] = None
+    category_id: Optional[int] = None
 
-# Get Products
-class ProductOut(BaseModel):
-    message: str
-    data: ProductBase
+class Product(ProductBase):
+    id: uuid.UUID
+    created_at: datetime
+    updated_at: Optional[datetime]
 
-    class Config(BaseConfig):
-        pass
-
-
-class ProductsOut(BaseModel):
-    message: str
-    data: List[ProductBase]
-
-    class Config(BaseConfig):
-        pass
-
-
-# Delete Product
-class ProductDelete(ProductBase):
-    category: ClassVar[CategoryBase]
-
-
-class ProductOutDelete(BaseModel):
-    message: str
-    data: ProductDelete
+    class Config:
+        orm_mode = True

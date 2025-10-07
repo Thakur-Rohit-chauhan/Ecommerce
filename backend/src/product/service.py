@@ -1,54 +1,98 @@
-from sqlalchemy.orm import Session
-from app.models.models import Product, Category
-from app.schemas.products import ProductCreate, ProductUpdate
-from app.utils.responses import ResponseHandler
-
+from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel import select, desc, or_, func
+from src.product.models import Product
+from src.product.schema import ProductCreate, ProductUpdate
+from datetime import datetime
+from typing import List, Optional, Dict, Any
+from fastapi import HTTPException, status
+from src.common.response import ResponseHandler
 
 class ProductService:
     @staticmethod
-    def get_all_products(db: Session, page: int, limit: int, search: str = ""):
-        products = db.query(Product).order_by(Product.id.asc()).filter(
-            Product.title.contains(search)).limit(limit).offset((page - 1) * limit).all()
-        return {"message": f"Page {page} with {limit} products", "data": products}
+    async def get_all_products(db: AsyncSession, page: int, limit: int, search: str = "") -> Dict[str, Any]:
+        try:
+            offset = (page - 1) * limit
+            query = select(Product)
+            
+            if search:
+                query = query.where(or_(
+                    Product.title.ilike(f"%{search}%"),
+                    Product.description.ilike(f"%{search}%"),
+                    Product.brand.ilike(f"%{search}%")
+                ))
+            
+            query = query.order_by(desc(Product.created_at)).offset(offset).limit(limit)
+            result = await db.execute(query)
+            products = result.scalars().all()
+            
+            # Get total count for pagination
+            count_query = select(func.count()).select_from(Product)
+            if search:
+                count_query = count_query.where(or_(
+                    Product.title.ilike(f"%{search}%"),
+                    Product.description.ilike(f"%{search}%"),
+                    Product.brand.ilike(f"%{search}%")
+                ))
+            total_count = await db.scalar(count_query)
+            
+            return {
+                "message": f"Successfully retrieved products for page {page}",
+                "data": products,
+                "metadata": {
+                    "page": page,
+                    "limit": limit,
+                    "total": total_count,
+                    "pages": (total_count + limit - 1) // limit
+                }
+            }
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error retrieving products: {str(e)}"
+            )
 
     @staticmethod
-    def get_product(db: Session, product_id: int):
-        product = db.query(Product).filter(Product.id == product_id).first()
+    async def get_product(db: AsyncSession, product_id: str) -> Product:
+        query = select(Product).where(Product.id == product_id)
+        result = await db.execute(query)
+        product = result.scalar_one_or_none()
         if not product:
             ResponseHandler.not_found_error("Product", product_id)
         return ResponseHandler.get_single_success(product.title, product_id, product)
 
     @staticmethod
-    def create_product(db: Session, product: ProductCreate):
-        category_exists = db.query(Category).filter(Category.id == product.category_id).first()
-        if not category_exists:
-            ResponseHandler.not_found_error("Category", product.category_id)
-
+    async def create_product(db: AsyncSession, product: ProductCreate) -> Product:
         product_dict = product.model_dump()
         db_product = Product(**product_dict)
         db.add(db_product)
-        db.commit()
-        db.refresh(db_product)
+        await db.commit()
+        await db.refresh(db_product)
         return ResponseHandler.create_success(db_product.title, db_product.id, db_product)
 
     @staticmethod
-    def update_product(db: Session, product_id: int, updated_product: ProductUpdate):
-        db_product = db.query(Product).filter(Product.id == product_id).first()
+    async def update_product(db: AsyncSession, product_id: str, updated_product: ProductUpdate) -> Product:
+        query = select(Product).where(Product.id == product_id)
+        result = await db.execute(query)
+        db_product = result.scalar_one_or_none()
         if not db_product:
             ResponseHandler.not_found_error("Product", product_id)
 
-        for key, value in updated_product.model_dump().items():
+        for key, value in updated_product.model_dump(exclude_unset=True).items():
             setattr(db_product, key, value)
+        db_product.updated_at = datetime.utcnow()
 
-        db.commit()
-        db.refresh(db_product)
+        db.add(db_product)
+        await db.commit()
+        await db.refresh(db_product)
         return ResponseHandler.update_success(db_product.title, db_product.id, db_product)
 
     @staticmethod
-    def delete_product(db: Session, product_id: int):
-        db_product = db.query(Product).filter(Product.id == product_id).first()
+    async def delete_product(db: AsyncSession, product_id: str) -> Product:
+        query = select(Product).where(Product.id == product_id)
+        result = await db.execute(query)
+        db_product = result.scalar_one_or_none()
         if not db_product:
             ResponseHandler.not_found_error("Product", product_id)
-        db.delete(db_product)
-        db.commit()
+        await db.delete(db_product)
+        await db.commit()
         return ResponseHandler.delete_success(db_product.title, db_product.id, db_product)
