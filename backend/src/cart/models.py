@@ -4,7 +4,7 @@ from typing import Optional
 import sqlalchemy.dialects.postgresql as pg
 from datetime import datetime
 from sqlmodel import Relationship
-from src.product.models import Product
+# from src.product.models import Product
 # from src.user.models import User
 
 class Cart(SQLModel, table=True):
@@ -56,6 +56,6 @@ class CartItem(SQLModel, table=True):
     cart_id: uuid.UUID = Field(nullable=False, foreign_key="carts.id")
     cart: Optional["Cart"] = Relationship(back_populates="cart_items")
     product_id: uuid.UUID = Field(nullable=False, foreign_key="products.id")
-    product: Optional["Product"] = Relationship(back_populates="cart_items")    
+    product: "Product" = Relationship(back_populates="cart_items")    
     quantity: int = Field(default=1, nullable=False)
     subtotal_price: float = Field(default=0.0, nullable=False)

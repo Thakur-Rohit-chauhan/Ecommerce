@@ -1,11 +1,11 @@
 from sqlmodel import SQLModel, Field, Column
 import uuid
-from typing import Optional
+from typing import Optional, List
 import sqlalchemy.dialects.postgresql as pg
 from datetime import datetime
 from sqlmodel import Relationship
-from src.cart.models import CartItem
-from src.category.models import Category
+# from src.cart.models import CartItem
+# from src.category.models import Category
 
 class Product(SQLModel, table=True):
     __tablename__ = "products"
@@ -52,7 +52,7 @@ class Product(SQLModel, table=True):
     category_id : int = Field(nullable=False, foreign_key="categories.id")
     category : Optional["Category"] = Relationship(back_populates="products")
 
-    cart_items : CartItem = Relationship(back_populates="product")
+    cart_items : List["CartItem"] = Relationship(back_populates="product")
 
 def __repr__(self):
     return f"<Product(id={self.id}, title={self.title}, price={self.price})>"
