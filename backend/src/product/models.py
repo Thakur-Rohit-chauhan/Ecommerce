@@ -3,6 +3,9 @@ import uuid
 from typing import Optional
 import sqlalchemy.dialects.postgresql as pg
 from datetime import datetime
+from sqlmodel import Relationship
+from src.cart.models import CartItem
+from src.category.models import Category
 
 class Product(SQLModel, table=True):
     __tablename__ = "products"
@@ -46,10 +49,10 @@ class Product(SQLModel, table=True):
         default=None
     )
 
-    # category_id : int = Field(nullable=False, foreign_key="categories.id")
-    # category : Optional["Category"] = Relationship(back_populates="products")
+    category_id : int = Field(nullable=False, foreign_key="categories.id")
+    category : Optional["Category"] = Relationship(back_populates="products")
 
-    # cart_items : list["CartItem"] = Relationship(back_populates="product")
+    cart_items : CartItem = Relationship(back_populates="product")
 
 def __repr__(self):
     return f"<Product(id={self.id}, title={self.title}, price={self.price})>"
