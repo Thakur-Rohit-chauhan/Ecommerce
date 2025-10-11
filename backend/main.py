@@ -4,6 +4,8 @@ from contextlib import asynccontextmanager
 from src.db.main import init_db
 from src.db.auto_migrations import run_auto_migrations
 from src.cart.routes import router as cart_router
+from src.category.routes import router as category_router
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -63,3 +65,4 @@ app = FastAPI(
 
 app.include_router(product_router, prefix="/products", tags=["Products"])
 app.include_router(cart_router, prefix="/carts", tags=["Carts"])
+app.include_router(category_router, prefix='/categories', tags=['Categories'])
