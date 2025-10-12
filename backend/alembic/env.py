@@ -59,14 +59,19 @@ async def run_migrations_online() -> None:
 
     """
 
-    ssl_context = ssl.create_default_context()
-    ssl_context.check_hostname = False
-    ssl_context.verify_mode = ssl.CERT_NONE
+    # Use environment-appropriate SSL configuration
+    if Config.ENVIRONMENT == "production":
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = True
+        ssl_context.verify_mode = ssl.CERT_REQUIRED
+        connect_args = {"ssl": ssl_context}
+    else:
+        connect_args = {}
 
     connectable = create_async_engine(
         Config.DATABASE_URL,
-        echo=True,
-        connect_args={"ssl": ssl_context}
+        echo=Config.ENVIRONMENT == "development",
+        connect_args=connect_args
     )
     async with connectable.begin() as conn:
         await conn.run_sync(

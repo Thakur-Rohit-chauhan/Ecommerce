@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 class CartItemBase(BaseModel):
     product_id: uuid.UUID
@@ -16,13 +17,13 @@ class CartItemUpdate(BaseModel):
 class CartItemResponse(CartItemBase):
     id: uuid.UUID
     cart_id: uuid.UUID
-    subtotal_price: float
+    subtotal_price: Decimal
     
     class Config:
         orm_mode = True
 
 class CartBase(BaseModel):
-    total_price: float = Field(default=0.0, ge=0)
+    total_price: Decimal = Field(default=Decimal('0.00'), decimal_places=2)
 
 class CartCreate(CartBase):
     pass

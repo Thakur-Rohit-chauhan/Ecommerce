@@ -6,6 +6,8 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 from fastapi import HTTPException, status
 from src.common.response import ResponseHandler
+from src.common.exceptions import NotFoundError, ValidationError
+from decimal import Decimal
 
 class ProductService:
     @staticmethod
@@ -53,46 +55,79 @@ class ProductService:
 
     @staticmethod
     async def get_product(db: AsyncSession, product_id: str) -> Product:
-        query = select(Product).where(Product.id == product_id)
-        result = await db.execute(query)
-        product = result.scalar_one_or_none()
-        if not product:
-            ResponseHandler.not_found_error("Product", product_id)
-        return ResponseHandler.get_single_success(product.title, product_id, product)
+        try:
+            query = select(Product).where(Product.id == product_id)
+            result = await db.execute(query)
+            product = result.scalar_one_or_none()
+            if not product:
+                raise NotFoundError("Product", product_id)
+            return ResponseHandler.get_single_success(product.title, product_id, product)
+        except NotFoundError:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error retrieving product: {str(e)}"
+            )
 
     @staticmethod
     async def create_product(db: AsyncSession, product: ProductCreate) -> Product:
-        product_dict = product.model_dump()
-        db_product = Product(**product_dict)
-        db.add(db_product)
-        await db.commit()
-        await db.refresh(db_product)
-        return ResponseHandler.create_success(db_product.title, db_product.id, db_product)
+        try:
+            product_dict = product.model_dump()
+            db_product = Product(**product_dict)
+            db.add(db_product)
+            await db.commit()
+            await db.refresh(db_product)
+            return ResponseHandler.create_success(db_product.title, db_product.id, db_product)
+        except Exception as e:
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error creating product: {str(e)}"
+            )
 
     @staticmethod
     async def update_product(db: AsyncSession, product_id: str, updated_product: ProductUpdate) -> Product:
-        query = select(Product).where(Product.id == product_id)
-        result = await db.execute(query)
-        db_product = result.scalar_one_or_none()
-        if not db_product:
-            ResponseHandler.not_found_error("Product", product_id)
+        try:
+            query = select(Product).where(Product.id == product_id)
+            result = await db.execute(query)
+            db_product = result.scalar_one_or_none()
+            if not db_product:
+                raise NotFoundError("Product", product_id)
 
-        for key, value in updated_product.model_dump(exclude_unset=True).items():
-            setattr(db_product, key, value)
-        db_product.updated_at = datetime.utcnow()
+            for key, value in updated_product.model_dump(exclude_unset=True).items():
+                setattr(db_product, key, value)
+            db_product.updated_at = datetime.utcnow()
 
-        db.add(db_product)
-        await db.commit()
-        await db.refresh(db_product)
-        return ResponseHandler.update_success(db_product.title, db_product.id, db_product)
+            db.add(db_product)
+            await db.commit()
+            await db.refresh(db_product)
+            return ResponseHandler.update_success(db_product.title, db_product.id, db_product)
+        except NotFoundError:
+            raise
+        except Exception as e:
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error updating product: {str(e)}"
+            )
 
     @staticmethod
     async def delete_product(db: AsyncSession, product_id: str) -> Product:
-        query = select(Product).where(Product.id == product_id)
-        result = await db.execute(query)
-        db_product = result.scalar_one_or_none()
-        if not db_product:
-            ResponseHandler.not_found_error("Product", product_id)
-        await db.delete(db_product)
-        await db.commit()
-        return ResponseHandler.delete_success(db_product.title, db_product.id, db_product)
+        try:
+            query = select(Product).where(Product.id == product_id)
+            result = await db.execute(query)
+            db_product = result.scalar_one_or_none()
+            if not db_product:
+                raise NotFoundError("Product", product_id)
+            await db.delete(db_product)
+            await db.commit()
+            return ResponseHandler.delete_success(db_product.title, db_product.id, db_product)
+        except NotFoundError:
+            raise
+        except Exception as e:
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error deleting product: {str(e)}"
+            )

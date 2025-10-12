@@ -3,6 +3,7 @@ from src.db.main import get_db
 from fastapi.exceptions import HTTPException
 from src.product.schema import ProductCreate, ProductUpdate, Product
 from src.product.service import ProductService
+from src.common.exceptions import NotFoundError
 from typing import List, Dict, Any
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -30,14 +31,22 @@ async def get_product(
     product_id: str,
     db: AsyncSession = Depends(get_db)
 ):
-    return await ProductService.get_product(db, product_id)
+    try:
+        return await ProductService.get_product(db, product_id)
+    except NotFoundError:
+        raise
+    except Exception as e:
+        raise e
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=Product) 
 async def create_product(
     product: ProductCreate,
     db: AsyncSession = Depends(get_db)
 ):
-    return await ProductService.create_product(db, product)
+    try:
+        return await ProductService.create_product(db, product)
+    except Exception as e:
+        raise e
 
 @router.put("/{product_id}", status_code=status.HTTP_200_OK, response_model=Product)
 async def update_product(
@@ -45,11 +54,21 @@ async def update_product(
     updated_product: ProductUpdate,
     db: AsyncSession = Depends(get_db)
 ):
-    return await ProductService.update_product(db, product_id, updated_product)
+    try:
+        return await ProductService.update_product(db, product_id, updated_product)
+    except NotFoundError:
+        raise
+    except Exception as e:
+        raise e
 
 @router.delete("/{product_id}", status_code=status.HTTP_200_OK, response_model=Product)
 async def delete_product(
     product_id: str,
     db: AsyncSession = Depends(get_db)
 ):
-    return await ProductService.delete_product(db, product_id)
+    try:
+        return await ProductService.delete_product(db, product_id)
+    except NotFoundError:
+        raise
+    except Exception as e:
+        raise e

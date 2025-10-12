@@ -1,12 +1,13 @@
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
+from sqlmodel import select, func
 from src.category.models import Category
 from src.category.schema import CategoryCreate, CategoryUpdate
 from datetime import datetime
 from typing import List, Optional
 from fastapi import HTTPException, status
 from src.common.response import ResponseHandler
-
+from src.common.exceptions import NotFoundError, ConflictError
+import uuid
 class CategoryService:
     @staticmethod
     async def get_all_categories(
@@ -45,13 +46,13 @@ class CategoryService:
             )
 
     @staticmethod
-    async def get_category(db: AsyncSession, category_id: int) -> Category:
+    async def get_category(db: AsyncSession, category_id: uuid.UUID) -> Category:
         query = select(Category).where(Category.id == category_id)
         result = await db.execute(query)
         category = result.scalar_one_or_none()
         
         if not category:
-            ResponseHandler.not_found_error("Category", category_id)
+            raise NotFoundError("Category", category_id)
             
         return ResponseHandler.get_single_success("Category", category_id, category)
 
@@ -63,10 +64,7 @@ class CategoryService:
         existing_category = result.scalar_one_or_none()
         
         if existing_category:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Category with name '{category.name}' already exists"
-            )
+            raise ConflictError(f"Category with name '{category.name}' already exists")
         
         db_category = Category(**category.dict())
         db.add(db_category)
@@ -77,7 +75,7 @@ class CategoryService:
     @staticmethod
     async def update_category(
         db: AsyncSession,
-        category_id: int,
+        category_id: uuid.UUID,
         category_update: CategoryUpdate
     ) -> Category:
         # Get existing category
@@ -86,7 +84,7 @@ class CategoryService:
         db_category = result.scalar_one_or_none()
         
         if not db_category:
-            ResponseHandler.not_found_error("Category", category_id)
+            raise NotFoundError("Category", category_id)
         
         # If name is being updated, check for uniqueness
         if category_update.name and category_update.name != db_category.name:
@@ -95,10 +93,7 @@ class CategoryService:
             existing_category = name_result.scalar_one_or_none()
             
             if existing_category:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Category with name '{category_update.name}' already exists"
-                )
+                raise ConflictError(f"Category with name '{category_update.name}' already exists")
         
         # Update fields
         for key, value in category_update.dict(exclude_unset=True).items():
@@ -113,20 +108,17 @@ class CategoryService:
         return ResponseHandler.update_success("Category", category_id, db_category)
 
     @staticmethod
-    async def delete_category(db: AsyncSession, category_id: int) -> None:
+    async def delete_category(db: AsyncSession, category_id: uuid.UUID) -> None:
         query = select(Category).where(Category.id == category_id)
         result = await db.execute(query)
         category = result.scalar_one_or_none()
         
         if not category:
-            ResponseHandler.not_found_error("Category", category_id)
+            raise NotFoundError("Category", category_id)
         
         # Check if category has products
         if len(category.products) > 0:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Cannot delete category with ID {category_id} as it has associated products"
-            )
+            raise ConflictError(f"Cannot delete category with ID {category_id} as it has associated products")
             
         await db.delete(category)
         await db.commit()

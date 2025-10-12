@@ -1,11 +1,13 @@
 from sqlmodel import SQLModel, Field, Column
 import uuid
-from typing import Optional
+from typing import Optional, List, TYPE_CHECKING
 import sqlalchemy.dialects.postgresql as pg
 from datetime import datetime
 from sqlmodel import Relationship
-# from src.product.models import Product
-# from src.user.models import User
+from decimal import Decimal
+
+if TYPE_CHECKING:
+    from src.product.models import Product
 
 class Cart(SQLModel, table=True):
     __tablename__ = 'carts'
@@ -36,8 +38,8 @@ class Cart(SQLModel, table=True):
             onupdate = datetime.utcnow,
         )
     , default = None)
-    cart_items: list["CartItem"] = Relationship(back_populates="cart")
-    total_price: float = Field(default=0.0, nullable=False)
+    cart_items: List["CartItem"] = Relationship(back_populates="cart")
+    total_price: Decimal = Field(default=Decimal('0.00'), nullable=False, decimal_places=2)
 
 
 
@@ -57,5 +59,5 @@ class CartItem(SQLModel, table=True):
     cart: Optional["Cart"] = Relationship(back_populates="cart_items")
     product_id: uuid.UUID = Field(nullable=False, foreign_key="products.id")
     product: "Product" = Relationship(back_populates="cart_items")    
-    quantity: int = Field(default=1, nullable=False)
-    subtotal_price: float = Field(default=0.0, nullable=False)
+    quantity: int = Field(default=1, nullable=False, ge=1)
+    subtotal_price: Decimal = Field(default=Decimal('0.00'), nullable=False, decimal_places=2)
