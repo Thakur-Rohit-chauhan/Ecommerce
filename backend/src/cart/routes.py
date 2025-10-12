@@ -8,7 +8,7 @@ import uuid
 
 router = APIRouter()
 
-@router.post("/", response_model=CartResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_cart(
     cart: CartCreate,
     db: AsyncSession = Depends(get_db)
@@ -16,7 +16,7 @@ async def create_cart(
     """Create a new shopping cart"""
     return await CartService.create_cart(db, cart)
 
-@router.get("/{cart_id}", response_model=CartResponse)
+@router.get("/{cart_id}")
 async def get_cart(
     cart_id: uuid.UUID = Path(..., title="The ID of the cart to retrieve"),
     db: AsyncSession = Depends(get_db)
@@ -32,7 +32,7 @@ async def delete_cart(
     """Delete a specific cart"""
     return await CartService.delete_cart(db, cart_id)
 
-@router.post("/{cart_id}/items", response_model=CartItemResponse)
+@router.post("/{cart_id}/items")
 async def add_item_to_cart(
     cart_id: uuid.UUID = Path(..., title="The ID of the cart to add an item to"),
     item: CartItemCreate = None,
@@ -41,7 +41,7 @@ async def add_item_to_cart(
     """Add an item to a cart"""
     return await CartService.add_item_to_cart(db, cart_id, item)
 
-@router.put("/{cart_id}/items/{item_id}", response_model=CartItemResponse)
+@router.put("/{cart_id}/items/{item_id}")
 async def update_cart_item(
     cart_id: uuid.UUID = Path(..., title="The ID of the cart"),
     item_id: uuid.UUID = Path(..., title="The ID of the item to update"),

@@ -26,7 +26,7 @@ async def get_all_products(
             detail=f"Internal server error: {str(e)}"
         )
 
-@router.get("/{product_id}", status_code=status.HTTP_200_OK, response_model=Product)
+@router.get("/{product_id}", status_code=status.HTTP_200_OK)
 async def get_product(
     product_id: str,
     db: AsyncSession = Depends(get_db)
@@ -38,7 +38,7 @@ async def get_product(
     except Exception as e:
         raise e
 
-@router.post("/", status_code=status.HTTP_201_CREATED, response_model=Product) 
+@router.post("/", status_code=status.HTTP_201_CREATED) 
 async def create_product(
     product: ProductCreate,
     db: AsyncSession = Depends(get_db)
@@ -48,7 +48,7 @@ async def create_product(
     except Exception as e:
         raise e
 
-@router.put("/{product_id}", status_code=status.HTTP_200_OK, response_model=Product)
+@router.put("/{product_id}", status_code=status.HTTP_200_OK)
 async def update_product(
     product_id: str,
     updated_product: ProductUpdate,
@@ -61,7 +61,7 @@ async def update_product(
     except Exception as e:
         raise e
 
-@router.delete("/{product_id}", status_code=status.HTTP_200_OK, response_model=Product)
+@router.delete("/{product_id}", status_code=status.HTTP_200_OK)
 async def delete_product(
     product_id: str,
     db: AsyncSession = Depends(get_db)
