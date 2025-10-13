@@ -16,7 +16,7 @@ import uuid
 
 router = APIRouter()
 
-@router.get("/", response_model=UserListResponse)
+@router.get("/")
 async def get_all_users(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
@@ -33,7 +33,7 @@ async def get_all_users(
     except Exception as e:
         raise e
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/me")
 async def get_current_user_profile(
     current_user: User = Depends(get_current_active_user)
 ):
@@ -42,7 +42,7 @@ async def get_current_user_profile(
     """
     return current_user
 
-@router.get("/{user_id}", response_model=UserResponse)
+@router.get("/{user_id}")
 async def get_user(
     user_id: uuid.UUID = Path(..., description="The UUID of the user"),
     current_user: User = Depends(get_current_active_user),
@@ -66,7 +66,7 @@ async def get_user(
     except Exception as e:
         raise e
 
-@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_user(
     user: UserCreate,
     current_user: User = Depends(require_admin),
@@ -82,7 +82,7 @@ async def create_user(
     except Exception as e:
         raise e
 
-@router.put("/{user_id}", response_model=UserResponse)
+@router.put("/{user_id}")
 async def update_user(
     user_id: uuid.UUID = Path(..., description="The UUID of the user"),
     user_update: UserUpdate = None,
@@ -133,7 +133,7 @@ async def change_password(
     except Exception as e:
         raise e
 
-@router.get("/sellers/list", response_model=UserListResponse)
+@router.get("/sellers/list")
 async def get_sellers(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),

@@ -102,6 +102,7 @@ class UserService:
             
             # Create user
             user_dict = user.model_dump(exclude={"password"})
+            # password = user.password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
             user_dict["hashed_password"] = get_password_hash(user.password)
             
             db_user = User(**user_dict)
