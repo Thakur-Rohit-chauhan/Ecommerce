@@ -66,6 +66,14 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Token expiration time | `30` | ❌ |
 | `ENVIRONMENT` | Environment mode | `development` | ❌ |
 
+### User Roles
+
+The system supports three user roles:
+
+1. **Normal User** (`normal_user`) - Default role for new registrations
+2. **Seller** (`seller`) - Can manage products and view orders
+3. **Admin** (`admin`) - Full system access
+
 ### Security Features
 
 - **SSL/TLS**: Automatically configured based on environment
@@ -84,19 +92,35 @@ Once the server is running, visit:
 ```
 backend/
 ├── src/
-│   ├── common/           # Shared utilities
+│   ├── auth/           # Authentication module
+│   │   ├── user/       # User management
+│   │   │   ├── models.py
+│   │   │   ├── routes.py
+│   │   │   ├── schema.py
+│   │   │   └── service.py
+│   │   ├── routes.py   # Auth routes (login, register)
+│   │   └── utils.py    # Auth utilities (JWT, password hashing)
+│   ├── orders/         # Order management
+│   │   ├── models.py
+│   │   ├── routes.py
+│   │   ├── schema.py
+│   │   └── service.py
+│   ├── common/         # Shared utilities
 │   │   ├── exceptions.py # Custom exception classes
 │   │   └── response.py   # Response handlers
-│   ├── config.py         # Configuration management
-│   ├── db/              # Database setup
-│   │   ├── main.py      # Database engine and session
+│   ├── config.py       # Configuration management
+│   ├── db/            # Database setup
+│   │   ├── main.py    # Database engine and session
 │   │   └── auto_migrations.py # Auto-migration system
-│   ├── product/         # Product module
-│   ├── category/        # Category module
-│   └── cart/           # Cart module
-├── alembic/            # Database migrations
-├── requirements.txt    # Dependencies
-└── .env.example       # Environment template
+│   ├── middleware.py  # Security and logging middleware
+│   ├── product/       # Product module
+│   ├── category/      # Category module
+│   └── cart/         # Cart module
+├── alembic/          # Database migrations
+├── requirements.txt  # Dependencies
+├── .env.example     # Environment template
+├── API_DOCUMENTATION.md # Complete API docs
+└── SETUP.md         # This file
 ```
 
 ## 🔒 Security Improvements Applied

@@ -3,6 +3,8 @@ from src.db.main import get_db
 from src.category.schema import CategoryCreate, CategoryUpdate, CategoryResponse
 from src.category.service import CategoryService
 from src.common.exceptions import NotFoundError, ConflictError
+from src.auth.utils import require_admin
+from src.auth.user.models import User
 from typing import Dict, Any
 from sqlmodel.ext.asyncio.session import AsyncSession
 import uuid
@@ -42,10 +44,11 @@ async def get_category(
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_category(
     category: CategoryCreate,
+    current_user: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Create a new category.
+    Create a new category (Admin only).
     """
     try:
         return await CategoryService.create_category(db, category)
@@ -58,10 +61,11 @@ async def create_category(
 async def update_category(
     category_id: uuid.UUID = Path(..., description="The UUID of the category"),
     category_update: CategoryUpdate = None,
+    current_user: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Update a specific category.
+    Update a specific category (Admin only).
     """
     try:
         return await CategoryService.update_category(db, category_id, category_update)
@@ -73,10 +77,11 @@ async def update_category(
 @router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_category(
     category_id: uuid.UUID = Path(..., description="The UUID of the category"),
+    current_user: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Delete a specific category.
+    Delete a specific category (Admin only).
     """
     try:
         return await CategoryService.delete_category(db, category_id)

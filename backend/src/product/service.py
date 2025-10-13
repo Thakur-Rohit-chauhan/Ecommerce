@@ -2,6 +2,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select, desc, or_, func
 from src.product.models import Product
 from src.product.schema import ProductCreate, ProductUpdate
+from src.auth.user.models import User, UserRole
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from fastapi import HTTPException, status
@@ -71,14 +72,23 @@ class ProductService:
             )
 
     @staticmethod
-    async def create_product(db: AsyncSession, product: ProductCreate) -> Product:
+    async def create_product(db: AsyncSession, product: ProductCreate, current_user: User) -> Product:
         try:
+            # Check if user has permission to create products
+            if current_user.role not in [UserRole.SELLER, UserRole.ADMIN]:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Only sellers and admins can create products"
+                )
+            
             product_dict = product.model_dump()
             db_product = Product(**product_dict)
             db.add(db_product)
             await db.commit()
             await db.refresh(db_product)
             return ResponseHandler.create_success(db_product.title, db_product.id, db_product)
+        except HTTPException:
+            raise
         except Exception as e:
             await db.rollback()
             raise HTTPException(
@@ -87,8 +97,15 @@ class ProductService:
             )
 
     @staticmethod
-    async def update_product(db: AsyncSession, product_id: str, updated_product: ProductUpdate) -> Product:
+    async def update_product(db: AsyncSession, product_id: str, updated_product: ProductUpdate, current_user: User) -> Product:
         try:
+            # Check if user has permission to update products
+            if current_user.role not in [UserRole.SELLER, UserRole.ADMIN]:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Only sellers and admins can update products"
+                )
+            
             query = select(Product).where(Product.id == product_id)
             result = await db.execute(query)
             db_product = result.scalar_one_or_none()
@@ -103,7 +120,7 @@ class ProductService:
             await db.commit()
             await db.refresh(db_product)
             return ResponseHandler.update_success(db_product.title, db_product.id, db_product)
-        except NotFoundError:
+        except (NotFoundError, HTTPException):
             raise
         except Exception as e:
             await db.rollback()
@@ -113,8 +130,15 @@ class ProductService:
             )
 
     @staticmethod
-    async def delete_product(db: AsyncSession, product_id: str) -> Product:
+    async def delete_product(db: AsyncSession, product_id: str, current_user: User) -> Product:
         try:
+            # Check if user has permission to delete products
+            if current_user.role not in [UserRole.SELLER, UserRole.ADMIN]:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Only sellers and admins can delete products"
+                )
+            
             query = select(Product).where(Product.id == product_id)
             result = await db.execute(query)
             db_product = result.scalar_one_or_none()
@@ -123,7 +147,7 @@ class ProductService:
             await db.delete(db_product)
             await db.commit()
             return ResponseHandler.delete_success(db_product.title, db_product.id, db_product)
-        except NotFoundError:
+        except (NotFoundError, HTTPException):
             raise
         except Exception as e:
             await db.rollback()

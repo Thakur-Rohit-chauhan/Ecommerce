@@ -3,26 +3,39 @@ from sqlmodel import select
 from src.cart.models import Cart, CartItem
 from src.cart.schema import CartCreate, CartItemCreate, CartItemUpdate
 from src.product.models import Product
+from src.auth.user.models import User, UserRole
 from datetime import datetime
 from typing import List, Optional
 from fastapi import HTTPException, status
 from src.common.response import ResponseHandler
+from src.common.exceptions import NotFoundError
 import uuid
 
 class CartService:
     @staticmethod
-    async def get_cart(db: AsyncSession, cart_id: uuid.UUID) -> Cart:
+    async def get_cart(db: AsyncSession, cart_id: uuid.UUID, current_user: User) -> Cart:
         query = select(Cart).where(Cart.id == cart_id)
         result = await db.execute(query)
         cart = result.scalar_one_or_none()
         
         if not cart:
-            ResponseHandler.not_found_error("Cart", cart_id)
+            raise NotFoundError("Cart", cart_id)
+        
+        # For now, we'll allow any authenticated user to view any cart
+        # In a real application, you might want to associate carts with users
+        # and restrict access to own carts only
             
         return ResponseHandler.get_single_success("Cart", cart_id, cart)
 
     @staticmethod
-    async def create_cart(db: AsyncSession, cart: CartCreate) -> Cart:
+    async def create_cart(db: AsyncSession, cart: CartCreate, current_user: User) -> Cart:
+        # Only normal users and sellers can create carts
+        if current_user.role not in [UserRole.NORMAL_USER, UserRole.SELLER, UserRole.ADMIN]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only authenticated users can create carts"
+            )
+        
         db_cart = Cart(**cart.dict())
         db.add(db_cart)
         await db.commit()
@@ -30,27 +43,41 @@ class CartService:
         return ResponseHandler.create_success("Cart", db_cart.id, db_cart)
 
     @staticmethod
-    async def delete_cart(db: AsyncSession, cart_id: uuid.UUID) -> None:
+    async def delete_cart(db: AsyncSession, cart_id: uuid.UUID, current_user: User) -> None:
         query = select(Cart).where(Cart.id == cart_id)
         result = await db.execute(query)
         cart = result.scalar_one_or_none()
         
         if not cart:
-            ResponseHandler.not_found_error("Cart", cart_id)
+            raise NotFoundError("Cart", cart_id)
+        
+        # Only authenticated users can delete carts
+        if current_user.role not in [UserRole.NORMAL_USER, UserRole.SELLER, UserRole.ADMIN]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only authenticated users can delete carts"
+            )
             
         await db.delete(cart)
         await db.commit()
         return ResponseHandler.delete_success("Cart", cart_id, cart)
 
     @staticmethod
-    async def add_item_to_cart(db: AsyncSession, cart_id: uuid.UUID, item: CartItemCreate) -> CartItem:
+    async def add_item_to_cart(db: AsyncSession, cart_id: uuid.UUID, item: CartItemCreate, current_user: User) -> CartItem:
+        # Only authenticated users can add items to cart
+        if current_user.role not in [UserRole.NORMAL_USER, UserRole.SELLER, UserRole.ADMIN]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only authenticated users can add items to cart"
+            )
+        
         # Verify cart exists
         cart_query = select(Cart).where(Cart.id == cart_id)
         cart_result = await db.execute(cart_query)
         cart = cart_result.scalar_one_or_none()
         
         if not cart:
-            ResponseHandler.not_found_error("Cart", cart_id)
+            raise NotFoundError("Cart", cart_id)
             
         # Verify product exists and get its price
         product_query = select(Product).where(Product.id == item.product_id)
@@ -58,7 +85,7 @@ class CartService:
         product = product_result.scalar_one_or_none()
         
         if not product:
-            ResponseHandler.not_found_error("Product", item.product_id)
+            raise NotFoundError("Product", item.product_id)
             
         # Calculate subtotal
         subtotal = product.price * item.quantity
@@ -87,8 +114,16 @@ class CartService:
         db: AsyncSession,
         cart_id: uuid.UUID,
         item_id: uuid.UUID,
-        item_update: CartItemUpdate
+        item_update: CartItemUpdate,
+        current_user: User
     ) -> CartItem:
+        # Only authenticated users can update cart items
+        if current_user.role not in [UserRole.NORMAL_USER, UserRole.SELLER, UserRole.ADMIN]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only authenticated users can update cart items"
+            )
+        
         # Get cart item
         query = select(CartItem).where(
             CartItem.id == item_id,
@@ -98,7 +133,7 @@ class CartService:
         cart_item = result.scalar_one_or_none()
         
         if not cart_item:
-            ResponseHandler.not_found_error("Cart Item", item_id)
+            raise NotFoundError("Cart Item", item_id)
             
         # Get product for price calculation
         product_query = select(Product).where(Product.id == cart_item.product_id)
@@ -106,7 +141,7 @@ class CartService:
         product = product_result.scalar_one_or_none()
         
         if not product:
-            ResponseHandler.not_found_error("Product", cart_item.product_id)
+            raise NotFoundError("Product", cart_item.product_id)
             
         # Get cart for total update
         cart_query = select(Cart).where(Cart.id == cart_id)
@@ -114,7 +149,7 @@ class CartService:
         cart = cart_result.scalar_one_or_none()
         
         if not cart:
-            ResponseHandler.not_found_error("Cart", cart_id)
+            raise NotFoundError("Cart", cart_id)
             
         # Update quantity and recalculate prices
         old_subtotal = cart_item.subtotal_price
@@ -136,8 +171,16 @@ class CartService:
     async def remove_cart_item(
         db: AsyncSession,
         cart_id: uuid.UUID,
-        item_id: uuid.UUID
+        item_id: uuid.UUID,
+        current_user: User
     ) -> None:
+        # Only authenticated users can remove cart items
+        if current_user.role not in [UserRole.NORMAL_USER, UserRole.SELLER, UserRole.ADMIN]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only authenticated users can remove cart items"
+            )
+        
         # Get cart item
         query = select(CartItem).where(
             CartItem.id == item_id,
@@ -147,7 +190,7 @@ class CartService:
         cart_item = result.scalar_one_or_none()
         
         if not cart_item:
-            ResponseHandler.not_found_error("Cart Item", item_id)
+            raise NotFoundError("Cart Item", item_id)
             
         # Get cart for total update
         cart_query = select(Cart).where(Cart.id == cart_id)
@@ -155,7 +198,7 @@ class CartService:
         cart = cart_result.scalar_one_or_none()
         
         if not cart:
-            ResponseHandler.not_found_error("Cart", cart_id)
+            raise NotFoundError("Cart", cart_id)
             
         # Update cart total
         cart.total_price -= cart_item.subtotal_price

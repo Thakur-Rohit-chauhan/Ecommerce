@@ -9,7 +9,8 @@ MODEL_DIRS = [
     "src/category/models",
     "src/product/models",
     "src/cart/models",
-    
+    "src/auth/user/models",
+    "src/orders/models",
 ]
 
 STATE_FILE = Path("alembic/.migration_state")

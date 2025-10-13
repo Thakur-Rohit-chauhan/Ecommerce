@@ -5,6 +5,10 @@ from src.db.main import init_db
 from src.db.auto_migrations import run_auto_migrations
 from src.cart.routes import router as cart_router
 from src.category.routes import router as category_router
+from src.auth.routes import router as auth_router
+from src.auth.user.routes import router as user_router
+from src.orders.routes import router as order_router
+from src.middleware import setup_middleware
 
 
 @asynccontextmanager
@@ -63,6 +67,13 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Setup middleware
+setup_middleware(app)
+
+# Include routers
+app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
+app.include_router(user_router, prefix="/users", tags=["Users"])
 app.include_router(product_router, prefix="/products", tags=["Products"])
 app.include_router(cart_router, prefix="/carts", tags=["Carts"])
-app.include_router(category_router, prefix='/categories', tags=['Categories'])
+app.include_router(category_router, prefix="/categories", tags=["Categories"])
+app.include_router(order_router, prefix="/orders", tags=["Orders"])
