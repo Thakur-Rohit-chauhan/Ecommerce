@@ -5,36 +5,60 @@ import ProductCard from "../components/ProductCard";
 import "./Home.css";
 
 function Home() {
-  const allProducts = [
-    { id: 1, name: "Fresh Mangoes", price: 120, category: "Fruits", image: "https://tse4.mm.bing.net/th/id/OIP.zbPKD1tYn395bESRngvNvwHaEK?pid=Api&P=0&h=180" },
-    { id: 2, name: "Organic Rice (5kg)", price: 899, category: "Groceries", image: "https://tse2.mm.bing.net/th/id/OIP.0xhpvvifqNNR8Y_FhfhkzwHaEK?pid=Api&P=0&h=180" },
-    { id: 3, name: "Handmade Jute Bag", price: 499, category: "Handicrafts", image: "https://shop.gaatha.com/image/cache/catalog/Gaatha/10_12_2020/Getting-carried-away-Handmade-Jute-bag-Jute-File-Folder-7-845x435.jpg" },
-    { id: 4, name: "Clay Pot", price: 299, category: "Handicrafts", image: "https://tse3.mm.bing.net/th/id/OIP.kTIyl5itptrgrWvI3BeJegHaE8?pid=Api&P=0&h=180" },
-    { id: 5, name: "Fresh Tomatoes", price: 60, category: "Vegetables", image: "https://tse1.mm.bing.net/th/id/OIP.MnO7emBcmN0p-miR6swgswHaEu?pid=Api&P=0&h=180" },
-    { id: 6, name: "Traditional Kurta", price: 999, category: "Clothes", image: "https://tse1.mm.bing.net/th/id/OIP.ytMn-SRy12TBvVTfNs8irwHaLH?pid=Api&P=0&h=180" },
-    { id: 7, name: "Spice Mix Pack", price: 349, category: "Spices", image: "https://tse3.mm.bing.net/th/id/OIP.JXMlDTr5D_4od7zwi1zaqAHaFj?pid=Api&P=0&h=180" },
-    { id: 8, name: "Banana Leaf Basket", price: 150, category: "Handicrafts", image: "https://tse2.mm.bing.net/th/id/OIP.Xf494iEH55WzTh9-5Za-EAHaFW?pid=Api&P=0&h=180" },
-  ];
-
-  const categories = ["All", "Fruits", "Vegetables", "Groceries", "Handicrafts", "Spices", "Clothes"];
-
+  const [categories, setCategories] = useState(["All"]);
+  const [categoryMap, setCategoryMap] = useState({});
+  const [products, setProducts] = useState([]);
+  const [shuffledProducts, setShuffledProducts] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [shuffledProducts, setShuffledProducts] = useState([]);
   const [visibleCount, setVisibleCount] = useState(6);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const shuffled = [...allProducts].sort(() => 0.5 - Math.random());
-    setShuffledProducts(shuffled);
+    const fetchData = async () => {
+      try {
+        // Fetch categories
+        const catRes = await fetch("http://localhost:8000/categories");
+        if (!catRes.ok) throw new Error("Failed to fetch categories");
+        const catResult = await catRes.json();
+        const catList = catResult.data || [];
+        const map = {};
+        catList.forEach((c) => {
+          map[c.id] = c.name;
+        });
+        setCategoryMap(map);
+        setCategories(["All", ...catList.map((c) => c.name)]);
+
+        // Fetch products
+        const prodRes = await fetch("http://localhost:8000/products");
+        if (!prodRes.ok) throw new Error("Failed to fetch products");
+        const prodResult = await prodRes.json();
+        const prodList = prodResult.data || [];
+        setProducts(prodList);
+        setShuffledProducts([...prodList].sort(() => 0.5 - Math.random()));
+      } catch (err) {
+        console.error(err);
+        setError("Unable to load data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
 
-  const filteredProducts = (search ? allProducts : shuffledProducts).filter((p) => {
-    const matchesCategory = selectedCategory === "All" || p.category === selectedCategory;
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+  const filteredProducts = (search ? products : shuffledProducts).filter((p) => {
+    const categoryName = categoryMap[p.category_id] || "Unknown";
+    const matchesCategory = selectedCategory === "All" || categoryName === selectedCategory;
+    const matchesSearch = p.title.toLowerCase().includes(search.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
   const visibleProducts = search ? filteredProducts : filteredProducts.slice(0, visibleCount);
+
+  if (loading) return <p style={{ textAlign: "center", marginTop: "2rem" }}>Loading products...</p>;
+  if (error) return <p style={{ textAlign: "center", color: "red" }}>{error}</p>;
 
   return (
     <>
@@ -88,7 +112,15 @@ function Home() {
       <div className="product-grid">
         {visibleProducts.map((product, idx) => (
           <div key={product.id} className="product-card animated-card" style={{ animationDelay: `${idx * 0.1}s` }}>
-            <ProductCard product={product} />
+            <ProductCard
+              product={{
+                id: product.id,
+                name: product.title,
+                price: product.price,
+                category: categoryMap[product.category_id] || "Unknown",
+                image: product.thumbnail
+              }}
+            />
           </div>
         ))}
       </div>
