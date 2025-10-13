@@ -1,43 +1,43 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
 function ProductDetail() {
   const navigate = useNavigate();
-
-  // Dummy product
-  const [product] = useState({
-    id: 1,
-    name: 'Smartphone XYZ',
-    price: 14999,
-    discount: 10,
-    images: ['/images/phone1.jpg', '/images/phone2.jpg', '/images/phone3.jpg'],
-    description: 'This is a high-quality smartphone with excellent features.',
-    rating: 4.5,
-    reviews: [
-      { id: 1, user: 'Alice', comment: 'Great phone!', rating: 5 },
-      { id: 2, user: 'Bob', comment: 'Good value for money.', rating: 4 },
-    ],
-  });
-
+  const { id } = useParams();
+  const [product, setProduct] = useState(null);
   const [currentImage, setCurrentImage] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Dummy Add to Cart handler
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        const response = await fetch(`http://localhost:8000/products/${id}`);
+        if (!response.ok) throw new Error('Failed to load product');
+        const result = await response.json();
+        console.log("Fetched product:", result);
+        setProduct(result.data);
+      } catch (err) {
+        console.error('Error fetching product:', err);
+        setError('Unable to load product details.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProduct();
+  }, [id]);
+
   const handleAddToCart = () => {
-    const token = localStorage.getItem('authToken'); // check if user is logged in
-
+    const token = localStorage.getItem('authToken');
     if (!token) {
-      // Not logged in → redirect to login
       navigate('/login');
       return;
     }
-
-    // Logged in → add product to dummy cart
     let cart = JSON.parse(localStorage.getItem('cart')) || [];
-    const existingProduct = cart.find((p) => p.id === product.id);
-
-    if (existingProduct) {
+    const existing = cart.find((p) => p.id === product.id);
+    if (existing) {
       alert('Product already in cart!');
     } else {
       cart.push({ ...product, quantity: 1 });
@@ -46,52 +46,65 @@ function ProductDetail() {
     }
   };
 
+  if (loading) return <p style={{ textAlign: 'center', marginTop: '2rem' }}>Loading product...</p>;
+  if (error) return <p style={{ textAlign: 'center', color: 'red' }}>{error}</p>;
+  if (!product) return <p style={{ textAlign: 'center' }}>No product found.</p>;
+
+  const isAvailable = product.stock > 0;
+
   return (
     <>
       <Navbar />
       <div style={styles.container}>
         <div style={styles.left}>
-          <img src={product.images[currentImage]} alt={product.name} style={styles.mainImage} />
-          <div style={styles.thumbnailContainer}>
-            {product.images.map((img, idx) => (
-              <img
-                key={idx}
-                src={img}
-                alt="thumbnail"
-                style={{
-                  ...styles.thumbnail,
-                  border: idx === currentImage ? '2px solid #ffcc00' : '1px solid #ccc',
-                }}
-                onClick={() => setCurrentImage(idx)}
-              />
-            ))}
-          </div>
+          <img
+            src={product.images?.[currentImage] || product.thumbnail || 'https://via.placeholder.com/400'}
+            alt={product.title}
+            style={styles.mainImage}
+          />
+          {product.images && product.images.length > 1 && (
+            <div style={styles.thumbnailContainer}>
+              {product.images.map((img, idx) => (
+                <img
+                  key={idx}
+                  src={img}
+                  alt={`Thumbnail ${idx + 1}`}
+                  style={{
+                    ...styles.thumbnail,
+                    border: idx === currentImage ? '2px solid #ffcc00' : '1px solid #ccc',
+                  }}
+                  onClick={() => setCurrentImage(idx)}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         <div style={styles.right}>
-          <h1>{product.name}</h1>
+          <h1>{product.title}</h1>
           <p style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
-            ₹{product.price}{' '}
-            {product.discount > 0 && <span style={{ color: 'green' }}>({product.discount}% OFF)</span>}
+            ₹{Number(product.price).toLocaleString()}{' '}
+            {product.discount_percentage > 0 && (
+              <span style={{ color: 'green' }}>({product.discount_percentage}% OFF)</span>
+            )}
           </p>
           <p>{product.description}</p>
+          <p><strong>Brand:</strong> {product.brand}</p>
+          <p><strong>Rating:</strong> {product.rating}⭐</p>
+          {!isAvailable && <p style={{ color: 'red', fontWeight: 'bold' }}>Product Not Available</p>}
 
           <div style={{ margin: '1rem 0' }}>
-            <button style={styles.button} onClick={handleAddToCart}>
-              Add to Cart
+            <button
+              style={{
+                ...styles.button,
+                backgroundColor: isAvailable ? '#ffcc00' : '#ccc',
+                cursor: isAvailable ? 'pointer' : 'not-allowed',
+              }}
+              onClick={handleAddToCart}
+              disabled={!isAvailable}
+            >
+              {isAvailable ? 'Add to Cart' : 'Unavailable'}
             </button>
-          </div>
-
-          <div style={{ marginTop: '2rem' }}>
-            <h3>Reviews</h3>
-            {product.reviews.map((r) => (
-              <div key={r.id} style={{ borderBottom: '1px solid #ccc', padding: '0.5rem 0' }}>
-                <p>
-                  <strong>{r.user}</strong> ({r.rating}⭐)
-                </p>
-                <p>{r.comment}</p>
-              </div>
-            ))}
           </div>
         </div>
       </div>
@@ -101,13 +114,37 @@ function ProductDetail() {
 }
 
 const styles = {
-  container: { display: 'flex', flexWrap: 'wrap', maxWidth: '1200px', margin: '2rem auto', gap: '2rem', padding: '0 1rem' },
+  container: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    maxWidth: '1200px',
+    margin: '2rem auto',
+    gap: '2rem',
+    padding: '0 1rem',
+  },
   left: { flex: '1 1 300px' },
-  mainImage: { width: '100%', maxHeight: '400px', objectFit: 'cover', borderRadius: '8px' },
+  mainImage: {
+    width: '100%',
+    maxHeight: '400px',
+    objectFit: 'cover',
+    borderRadius: '8px',
+  },
   thumbnailContainer: { display: 'flex', gap: '0.5rem', marginTop: '0.5rem' },
-  thumbnail: { width: '60px', height: '60px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' },
+  thumbnail: {
+    width: '60px',
+    height: '60px',
+    objectFit: 'cover',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  },
   right: { flex: '1 1 400px' },
-  button: { padding: '0.8rem 1.5rem', fontSize: '1rem', borderRadius: '6px', border: 'none', cursor: 'pointer', backgroundColor: '#ffcc00', fontWeight: 'bold' },
+  button: {
+    padding: '0.8rem 1.5rem',
+    fontSize: '1rem',
+    borderRadius: '6px',
+    border: 'none',
+    fontWeight: 'bold',
+  },
 };
 
 export default ProductDetail;

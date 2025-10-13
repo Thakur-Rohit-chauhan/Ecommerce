@@ -1,57 +1,68 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import ProductCard from '../components/ProductCard';
 
 function Products() {
   const location = useLocation();
+  const navigate = useNavigate();
   const queryParams = new URLSearchParams(location.search);
   const searchQuery = queryParams.get('search')?.toLowerCase() || '';
 
-  // Dummy categories
-  const categories = ["All", "Fruits", "Vegetables", "Groceries", "Handicrafts", "Spices", "Clothes"];
-
-  // Dummy products
-  const allProducts = [
-    { id: 1, name: "Fresh Mangoes", price: 120, category: "Fruits", image: "https://tse4.mm.bing.net/th/id/OIP.zbPKD1tYn395bESRngvNvwHaEK?pid=Api&P=0&h=180" },
-    { id: 2, name: "Organic Rice (5kg)", price: 899, category: "Groceries", image: "https://tse2.mm.bing.net/th/id/OIP.0xhpvvifqNNR8Y_FhfhkzwHaEK?pid=Api&P=0&h=180" },
-    { id: 3, name: "Handmade Jute Bag", price: 499, category: "Handicrafts", image: "https://shop.gaatha.com/image/cache/catalog/Gaatha/10_12_2020/Getting-carried-away-Handmade-Jute-bag-Jute-File-Folder-7-845x435.jpg" },
-    { id: 4, name: "Clay Pot", price: 299, category: "Handicrafts", image: "https://tse3.mm.bing.net/th/id/OIP.kTIyl5itptrgrWvI3BeJegHaE8?pid=Api&P=0&h=180" },
-    { id: 5, name: "Fresh Tomatoes", price: 60, category: "Vegetables", image: "https://tse1.mm.bing.net/th/id/OIP.MnO7emBcmN0p-miR6swgswHaEu?pid=Api&P=0&h=180" },
-    { id: 6, name: "Traditional Kurta", price: 999, category: "Clothes", image: "https://tse1.mm.bing.net/th/id/OIP.ytMn-SRy12TBvVTfNs8irwHaLH?pid=Api&P=0&h=180" },
-    { id: 7, name: "Spice Mix Pack", price: 349, category: "Spices", image: "https://tse3.mm.bing.net/th/id/OIP.JXMlDTr5D_4od7zwi1zaqAHaFj?pid=Api&P=0&h=180" },
-    { id: 8, name: "Banana Leaf Basket", price: 150, category: "Handicrafts", image: "https://tse2.mm.bing.net/th/id/OIP.Xf494iEH55WzTh9-5Za-EAHaFW?pid=Api&P=0&h=180" },
-  ];
-
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState(['All']);
+  const [categoryMap, setCategoryMap] = useState({});
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sortOption, setSortOption] = useState('');
-  const [products, setProducts] = useState(allProducts);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  // Fetch categories & products
+  const fetchData = async () => {
+    try {
+      // Fetch categories
+      const catRes = await fetch('http://localhost:8000/categories');
+      if (!catRes.ok) throw new Error('Failed to fetch categories');
+      const catResult = await catRes.json();
+      const catList = catResult.data || [];
+      const map = {};
+      catList.forEach(c => (map[c.id] = c.name));
+      setCategoryMap(map);
+      setCategories(['All', ...catList.map(c => c.name)]);
+
+      // Fetch products
+      const prodRes = await fetch('http://localhost:8000/products/');
+      if (!prodRes.ok) throw new Error('Invalid response from server');
+      const prodData = await prodRes.json();
+      setProducts(Array.isArray(prodData.data) ? prodData.data : []);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError('Failed to load products.');
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    let filtered = allProducts;
+    fetchData();
+  }, []);
 
-    // Filter by category
-    if (selectedCategory !== 'All') {
-      filtered = filtered.filter(p => p.category === selectedCategory);
-    }
-
-    // Filter by search query
-    if (searchQuery) {
-      filtered = filtered.filter(p => p.name.toLowerCase().includes(searchQuery));
-    }
-
-    // Sort
-    if (sortOption === 'priceLow') filtered.sort((a, b) => a.price - b.price);
-    if (sortOption === 'priceHigh') filtered.sort((a, b) => b.price - a.price);
-
-    setProducts(filtered);
-  }, [selectedCategory, sortOption, searchQuery]);
+  // Filter & sort
+  const filteredProducts = products
+    .filter(p => {
+      const categoryName = categoryMap[p.category_id] || 'Unknown';
+      return selectedCategory === 'All' || categoryName === selectedCategory;
+    })
+    .filter(p => p.title.toLowerCase().includes(searchQuery))
+    .sort((a, b) => {
+      if (sortOption === 'priceLow') return Number(a.price) - Number(b.price);
+      if (sortOption === 'priceHigh') return Number(b.price) - Number(a.price);
+      return 0;
+    });
 
   return (
     <>
       <Navbar />
-
       <div style={styles.container}>
         <h1 style={styles.title}>Products</h1>
 
@@ -60,8 +71,10 @@ function Products() {
           <div>
             <strong>Category:</strong>
             <select
+              id="category-select"
+              name="category"
               value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
+              onChange={e => setSelectedCategory(e.target.value)}
               style={styles.select}
             >
               {categories.map((cat, idx) => (
@@ -73,8 +86,10 @@ function Products() {
           <div>
             <strong>Sort By:</strong>
             <select
+              id="sort-select"
+              name="sort"
               value={sortOption}
-              onChange={(e) => setSortOption(e.target.value)}
+              onChange={e => setSortOption(e.target.value)}
               style={styles.select}
             >
               <option value="">Default</option>
@@ -84,26 +99,41 @@ function Products() {
           </div>
         </div>
 
-        {/* Product Grid */}
+        {/* Loading / Error / Product Grid */}
+        {loading && <p>Loading products...</p>}
+        {error && <p style={{ color: 'red' }}>{error}</p>}
+
         <div style={styles.productGrid}>
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
+          {!loading && !error && filteredProducts.length > 0 && filteredProducts.map(product => (
+            <div
+              key={product.id}
+              style={styles.card}
+              onClick={() => navigate(`/products/${product.id}`)}
+            >
+              <img
+                src={product.thumbnail || (product.images && product.images[0]) || 'https://via.placeholder.com/200'}
+                alt={product.title || 'Product'}
+                style={styles.image}
+              />
+              <h3 style={styles.productTitle}>{product.title}</h3>
+              <p style={styles.price}>₹{product.price}</p>
+              <p style={styles.brand}>{product.brand}</p>
+              <p style={styles.category}>{categoryMap[product.category_id]}</p>
+            </div>
           ))}
-          {products.length === 0 && <p>No products found for "{searchQuery}"</p>}
+
+          {!loading && filteredProducts.length === 0 && (
+            <p>No products found for "{searchQuery}"</p>
+          )}
         </div>
       </div>
-
       <Footer />
     </>
   );
 }
 
 const styles = {
-  container: {
-    maxWidth: '1200px',
-    margin: '2rem auto',
-    padding: '0 1rem',
-  },
+  container: { maxWidth: '1200px', margin: '2rem auto', padding: '0 1rem' },
   title: { fontSize: '2rem', marginBottom: '1rem', textAlign: 'center' },
   filters: {
     display: 'flex',
@@ -112,16 +142,32 @@ const styles = {
     flexWrap: 'wrap',
     gap: '1rem',
   },
-  select: {
-    padding: '0.5rem',
-    fontSize: '1rem',
-    marginLeft: '0.5rem',
-  },
+  select: { padding: '0.5rem', fontSize: '1rem', marginLeft: '0.5rem' },
   productGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
     gap: '1rem',
   },
+  card: {
+    border: '1px solid #ddd',
+    borderRadius: '10px',
+    padding: '1rem',
+    textAlign: 'center',
+    backgroundColor: '#fff',
+    boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
+    cursor: 'pointer',
+  },
+  image: {
+    width: '100%',
+    height: '180px',
+    objectFit: 'cover',
+    borderRadius: '10px',
+    marginBottom: '0.5rem',
+  },
+  productTitle: { fontSize: '1.1rem', fontWeight: '600', margin: '0.5rem 0' },
+  price: { color: '#28a745', fontWeight: 'bold' },
+  brand: { color: '#555', fontSize: '0.9rem' },
+  category: { color: '#888', fontSize: '0.85rem', marginTop: '0.3rem' },
 };
 
 export default Products;
