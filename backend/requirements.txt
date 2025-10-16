@@ -81,3 +81,7 @@ h11==0.16.0
 
 # PDF Generation
 reportlab==4.0.4
+
+# Payment Processing
+stripe==7.8.0
+paypalrestsdk==1.13.3
