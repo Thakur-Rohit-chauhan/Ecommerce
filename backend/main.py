@@ -8,6 +8,7 @@ from src.category.routes import router as category_router
 from src.auth.routes import router as auth_router
 from src.auth.user.routes import router as user_router
 from src.orders.routes import router as order_router
+from src.dashboard.routes import router as dashboard_router
 from src.middleware import setup_middleware
 
 
@@ -77,3 +78,4 @@ app.include_router(product_router, prefix="/products", tags=["Products"])
 app.include_router(cart_router, prefix="/carts", tags=["Carts"])
 app.include_router(category_router, prefix="/categories", tags=["Categories"])
 app.include_router(order_router, prefix="/orders", tags=["Orders"])
+app.include_router(dashboard_router, prefix="/dashboard", tags=["Dashboard"])
