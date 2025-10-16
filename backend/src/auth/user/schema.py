@@ -34,12 +34,18 @@ class UserUpdate(BaseModel):
     is_active: Optional[bool] = None
     is_verified: Optional[bool] = None
     role: Optional[UserRole] = None
+    email_notifications_enabled: Optional[bool] = None
+    order_notifications_enabled: Optional[bool] = None
+    marketing_emails_enabled: Optional[bool] = None
 
 class UserResponse(UserBase):
     id: uuid.UUID
     is_active: bool
     is_verified: bool
     role: UserRole
+    email_notifications_enabled: bool
+    order_notifications_enabled: bool
+    marketing_emails_enabled: bool
     created_at: datetime
     updated_at: Optional[datetime]
     last_login: Optional[datetime]

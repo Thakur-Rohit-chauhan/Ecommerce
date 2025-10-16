@@ -44,6 +44,11 @@ class User(SQLModel, table=True):
     is_verified: bool = Field(default=False, nullable=False)
     role: UserRole = Field(default=UserRole.NORMAL_USER, nullable=False)
     
+    # Email notification preferences
+    email_notifications_enabled: bool = Field(default=True, nullable=False)
+    order_notifications_enabled: bool = Field(default=True, nullable=False)
+    marketing_emails_enabled: bool = Field(default=False, nullable=False)
+    
     # Timestamps
     created_at: datetime = Field(
         sa_column=Column(
