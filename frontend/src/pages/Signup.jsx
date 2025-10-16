@@ -1,60 +1,47 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import api from '../Api/api';
 
 function Signup() {
+  const [username, setUsername] = useState('');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [address, setAddress] = useState('');
   const [password, setPassword] = useState('');
-  const role = 'normal_user'; // default role
-
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+  const navigate = useNavigate();
 
   const handleSignup = async (e) => {
     e.preventDefault();
-
-    const requestBody = {
-      email,
-      username,
-      full_name: fullName,
-      phone_number: phoneNumber,
-      address,
-      password,
-      role,
-    };
-
     setLoading(true);
-    setMessage('');
+    setError('');
 
     try {
-      const response = await fetch('http://localhost:8000/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
+      await api.post('/auth/register', {
+        username,
+        full_name: name,
+        email,
+        password,
+        phone_number: phone || null,
+        address: address || null,
       });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage('Signup successful! You can now login.');
-        // Clear form
-        setEmail('');
-        setUsername('');
-        setFullName('');
-        setPhoneNumber('');
-        setAddress('');
-        setPassword('');
-      } else {
-        setMessage(data.error || 'Signup failed. Try again.');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      setMessage('Something went wrong. Please try again.');
-    } finally {
+      
+      setSuccess(true);
+      // Redirect to login after 5 seconds
+      setTimeout(() => {
+        navigate('/login');
+      }, 5000);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Signup failed. Please try again.');
       setLoading(false);
     }
   };
@@ -64,63 +51,106 @@ function Signup() {
       <Navbar />
       <div style={styles.container}>
         <h1>Signup</h1>
-        <form onSubmit={handleSignup} style={styles.form}>
-          <input
-            type="text"
-            placeholder="Full Name"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            style={styles.input}
-            required
-          />
-          <input
-            type="text"
-            placeholder="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            style={styles.input}
-            required
-          />
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={styles.input}
-            required
-          />
-          <input
-            type="text"
-            placeholder="Phone Number"
-            value={phoneNumber}
-            onChange={(e) => setPhoneNumber(e.target.value)}
-            style={styles.input}
-            required
-          />
-          <input
-            type="text"
-            placeholder="Address"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            style={styles.input}
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={styles.input}
-            required
-          />
-          <button type="submit" style={styles.button} disabled={loading}>
-            {loading ? 'Signing up...' : 'Signup'}
-          </button>
-        </form>
-        {message && <p style={{ marginTop: '1rem', color: 'green' }}>{message}</p>}
-        <p style={{ marginTop: '1rem' }}>
-          Already have an account? <a href="/login">Login here</a>
-        </p>
+        
+        {success ? (
+          <div style={styles.successBox}>
+            <h2 style={styles.successTitle}>Registration Successful! 🎉</h2>
+            <p style={styles.successMessage}>
+              We've sent a verification email to <strong>{email}</strong>.
+            </p>
+            <p style={styles.successMessage}>
+              Please check your inbox and click the verification link to activate your account.
+            </p>
+            <p style={styles.successNote}>
+              Redirecting to login page in 5 seconds...
+            </p>
+            <button 
+              onClick={() => navigate('/login')} 
+              style={styles.button}
+            >
+              Go to Login Now
+            </button>
+            <p style={{ marginTop: '1rem', fontSize: '0.9rem' }}>
+              Didn't receive the email? <a href="/resend-verification">Resend verification</a>
+            </p>
+          </div>
+        ) : (
+          <>
+            {error && (
+              <div style={styles.errorBox}>
+                {error}
+              </div>
+            )}
+            
+            <form onSubmit={handleSignup} style={styles.form}>
+              <input
+                type="text"
+                placeholder="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                style={styles.input}
+                required
+                disabled={loading}
+              />
+              <input
+                type="text"
+                placeholder="Full Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                style={styles.input}
+                required
+                disabled={loading}
+              />
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={styles.input}
+                required
+                disabled={loading}
+              />
+              <input
+                type="password"
+                placeholder="Password (min 8 characters)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={styles.input}
+                minLength={8}
+                required
+                disabled={loading}
+              />
+              <input
+                type="tel"
+                placeholder="Phone Number (optional)"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                style={styles.input}
+                disabled={loading}
+              />
+              <textarea
+                placeholder="Address (optional)"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                style={{...styles.input, minHeight: '60px'}}
+                disabled={loading}
+              />
+              <button 
+                type="submit" 
+                style={{
+                  ...styles.button,
+                  ...(loading ? styles.buttonDisabled : {})
+                }}
+                disabled={loading}
+              >
+                {loading ? 'Creating Account...' : 'Signup'}
+              </button>
+            </form>
+            <p style={{ marginTop: '1rem' }}>
+              Already have an account? <a href="/login">Login here</a>
+            </p>
+          </>
+        )}
       </div>
       <Footer />
     </>
@@ -128,18 +158,43 @@ function Signup() {
 }
 
 const styles = {
-  container: {
-    maxWidth: '400px',
-    margin: '3rem auto',
-    padding: '2rem',
-    border: '1px solid #ccc',
-    borderRadius: '8px',
-    textAlign: 'center',
-    backgroundColor: '#fff',
-  },
+  container: { maxWidth: '500px', margin: '3rem auto', padding: '2rem', border: '1px solid #ccc', borderRadius: '8px', textAlign: 'center', backgroundColor: '#fff' },
   form: { display: 'flex', flexDirection: 'column', gap: '1rem' },
   input: { padding: '0.6rem', fontSize: '1rem', borderRadius: '6px', border: '1px solid #ccc' },
-  button: { padding: '0.6rem', fontSize: '1rem', backgroundColor: '#ffcc00', border: 'none', borderRadius: '6px', cursor: 'pointer' },
+  button: { padding: '0.6rem', fontSize: '1rem', backgroundColor: '#ffcc00', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' },
+  buttonDisabled: { backgroundColor: '#ccc', cursor: 'not-allowed' },
+  errorBox: { 
+    padding: '1rem', 
+    backgroundColor: '#f8d7da', 
+    color: '#721c24', 
+    border: '1px solid #f5c6cb', 
+    borderRadius: '6px', 
+    marginBottom: '1rem',
+    fontSize: '0.9rem'
+  },
+  successBox: {
+    padding: '1.5rem',
+    backgroundColor: '#d4edda',
+    border: '1px solid #c3e6cb',
+    borderRadius: '8px',
+  },
+  successTitle: {
+    color: '#155724',
+    marginBottom: '1rem',
+    fontSize: '1.5rem',
+  },
+  successMessage: {
+    color: '#155724',
+    marginBottom: '0.5rem',
+    lineHeight: '1.5',
+  },
+  successNote: {
+    color: '#155724',
+    fontSize: '0.9rem',
+    marginTop: '1rem',
+    marginBottom: '1rem',
+    fontStyle: 'italic',
+  },
 };
 
 export default Signup;

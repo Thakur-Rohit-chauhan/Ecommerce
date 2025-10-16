@@ -1,47 +1,44 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import api from '../Api/api';
 
 function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [verificationError, setVerificationError] = useState(false);
   const navigate = useNavigate();
-
-  // Auto-login if token/user exists
-  useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      const user = JSON.parse(storedUser);
-      if (user.role === 'vendor') navigate('/vendor');
-      else navigate('/profile');
-    }
-  }, [navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
+    setVerificationError(false);
 
     try {
-      const response = await fetch('http://localhost:8000/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+      const response = await api.post('/auth/login', {
+        username,
+        password,
       });
 
-      const data = await response.json();
+      // Save token to localStorage
+      localStorage.setItem('authToken', response.data.access_token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
 
-      if (!response.ok) throw new Error(data.detail || 'Login failed.');
-
-      localStorage.setItem('authToken', data.access_token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-
-      if (data.user.role === 'vendor') navigate('/vendor');
-      else navigate('/profile');
+      navigate('/profile');
     } catch (err) {
-      alert(err.message);
-    } finally {
+      if (err.response?.status === 403) {
+        // Email not verified
+        setVerificationError(true);
+        setError('Please verify your email address before logging in. Check your inbox for the verification link.');
+      } else if (err.response?.status === 401) {
+        setError('Invalid username or password.');
+      } else {
+        setError(err.response?.data?.detail || 'Login failed. Please try again.');
+      }
       setLoading(false);
     }
   };
@@ -51,14 +48,29 @@ function Login() {
       <Navbar />
       <div style={styles.container}>
         <h1>Login</h1>
+        
+        {error && (
+          <div style={verificationError ? styles.warningBox : styles.errorBox}>
+            {error}
+            {verificationError && (
+              <div style={styles.verificationActions}>
+                <Link to="/resend-verification" style={styles.resendLink}>
+                  Resend Verification Email
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+        
         <form onSubmit={handleLogin} style={styles.form}>
           <input
             type="text"
-            placeholder="Username"
+            placeholder="Username or Email"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             style={styles.input}
             required
+            disabled={loading}
           />
           <input
             type="password"
@@ -67,13 +79,21 @@ function Login() {
             onChange={(e) => setPassword(e.target.value)}
             style={styles.input}
             required
+            disabled={loading}
           />
-          <button type="submit" style={styles.button} disabled={loading}>
+          <button 
+            type="submit" 
+            style={{
+              ...styles.button,
+              ...(loading ? styles.buttonDisabled : {})
+            }}
+            disabled={loading}
+          >
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
         <p style={{ marginTop: '1rem' }}>
-          Don’t have an account? <a href="/register">Signup here</a>
+          Don't have an account? <a href="/signup">Signup here</a>
         </p>
       </div>
       <Footer />
@@ -92,19 +112,43 @@ const styles = {
     backgroundColor: '#fff',
   },
   form: { display: 'flex', flexDirection: 'column', gap: '1rem' },
-  input: {
-    padding: '0.6rem',
-    fontSize: '1rem',
-    borderRadius: '6px',
-    border: '1px solid #ccc',
+  input: { padding: '0.6rem', fontSize: '1rem', borderRadius: '6px', border: '1px solid #ccc' },
+  button: { padding: '0.6rem', fontSize: '1rem', backgroundColor: '#ffcc00', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' },
+  buttonDisabled: { backgroundColor: '#ccc', cursor: 'not-allowed' },
+  errorBox: { 
+    padding: '1rem', 
+    backgroundColor: '#f8d7da', 
+    color: '#721c24', 
+    border: '1px solid #f5c6cb', 
+    borderRadius: '6px', 
+    marginBottom: '1rem',
+    fontSize: '0.9rem',
+    lineHeight: '1.5',
   },
-  button: {
-    padding: '0.6rem',
-    fontSize: '1rem',
+  warningBox: { 
+    padding: '1rem', 
+    backgroundColor: '#fff3cd', 
+    color: '#856404', 
+    border: '1px solid #ffeaa7', 
+    borderRadius: '6px', 
+    marginBottom: '1rem',
+    fontSize: '0.9rem',
+    lineHeight: '1.5',
+  },
+  verificationActions: {
+    marginTop: '0.75rem',
+    paddingTop: '0.75rem',
+    borderTop: '1px solid #ffeaa7',
+  },
+  resendLink: {
+    display: 'inline-block',
+    padding: '0.5rem 1rem',
     backgroundColor: '#ffcc00',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
+    color: '#333',
+    textDecoration: 'none',
+    borderRadius: '4px',
+    fontWeight: 'bold',
+    fontSize: '0.9rem',
   },
 };
 

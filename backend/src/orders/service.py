@@ -2,6 +2,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select, func, desc
 from src.orders.models import Order, OrderItem, OrderStatus, PaymentStatus
 from src.orders.schema import OrderCreate, OrderUpdate
+from src.orders.notification_service import OrderNotificationService
 from src.product.models import Product
 from src.auth.user.models import User, UserRole
 from datetime import datetime
@@ -13,6 +14,9 @@ from decimal import Decimal
 import uuid
 import random
 import string
+import logging
+
+logger = logging.getLogger(__name__)
 
 class OrderService:
     @staticmethod
@@ -181,6 +185,43 @@ class OrderService:
             await db.commit()
             await db.refresh(db_order)
             
+            # Send order confirmation email to customer
+            try:
+                # Get order items for email
+                order_items_query = select(OrderItem).where(OrderItem.order_id == db_order.id)
+                order_items_result = await db.execute(order_items_query)
+                order_items = order_items_result.scalars().all()
+                
+                # Send confirmation email
+                await OrderNotificationService.send_order_confirmation_email(
+                    db_order, order_items, current_user
+                )
+                
+                # Send notification to sellers
+                # Get unique sellers from order items
+                seller_ids = set()
+                for item in order_items:
+                    product_query = select(Product).where(Product.id == item.product_id)
+                    product_result = await db.execute(product_query)
+                    product = product_result.scalar_one_or_none()
+                    if product:
+                        seller_ids.add(product.seller_id)
+                
+                # Get seller users
+                if seller_ids:
+                    sellers_query = select(User).where(User.id.in_(seller_ids))
+                    sellers_result = await db.execute(sellers_query)
+                    sellers = sellers_result.scalars().all()
+                    
+                    # Send notifications to sellers
+                    await OrderNotificationService.send_new_order_notification_to_sellers(
+                        db_order, order_items, current_user, sellers
+                    )
+                
+            except Exception as e:
+                logger.error(f"Failed to send order notifications: {str(e)}")
+                # Don't fail the order creation if email fails
+            
             return ResponseHandler.create_success("Order", db_order.id, db_order)
         except (NotFoundError, ValidationError):
             raise
@@ -213,6 +254,10 @@ class OrderService:
                     detail="You can only update your own orders"
                 )
             
+            # Store old status for notification
+            old_status = db_order.status
+            old_payment_status = db_order.payment_status
+            
             # Update fields
             for key, value in order_update.model_dump(exclude_unset=True).items():
                 setattr(db_order, key, value)
@@ -222,6 +267,36 @@ class OrderService:
             db.add(db_order)
             await db.commit()
             await db.refresh(db_order)
+            
+            # Send notifications for status changes
+            try:
+                # Get customer for notifications
+                customer_query = select(User).where(User.id == db_order.user_id)
+                customer_result = await db.execute(customer_query)
+                customer = customer_result.scalar_one_or_none()
+                
+                if customer:
+                    # Send status update email if status changed
+                    if old_status != db_order.status:
+                        await OrderNotificationService.send_order_status_update_email(
+                            db_order, customer, old_status, db_order.status
+                        )
+                    
+                    # Send payment confirmation email if payment status changed to PAID
+                    if old_payment_status != db_order.payment_status and db_order.payment_status == PaymentStatus.PAID:
+                        await OrderNotificationService.send_payment_confirmation_email(
+                            db_order, customer
+                        )
+                    
+                    # Send shipped email if status changed to SHIPPED
+                    if old_status != db_order.status and db_order.status == OrderStatus.SHIPPED:
+                        await OrderNotificationService.send_order_shipped_email(
+                            db_order, customer
+                        )
+                
+            except Exception as e:
+                logger.error(f"Failed to send order update notifications: {str(e)}")
+                # Don't fail the order update if email fails
             
             return ResponseHandler.update_success("Order", order_id, db_order)
         except (NotFoundError, HTTPException):
