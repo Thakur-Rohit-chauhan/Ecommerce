@@ -1,28 +1,45 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import api from '../Api/api';
 
 function Login() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [verificationError, setVerificationError] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError('');
+    setVerificationError(false);
 
-    // Dummy authentication
-    // Only accept these credentials for testing
-    const dummyEmail = 'user@example.com';
-    const dummyPassword = '123456';
+    try {
+      const response = await api.post('/auth/login', {
+        username,
+        password,
+      });
 
-    if (email === dummyEmail && password === dummyPassword) {
       // Save token to localStorage
-      localStorage.setItem('authToken', 'dummy-token');
-      alert('Login successful!');
-      navigate('/profile'); // redirect to profile after login
-    } else {
-      alert('Invalid email or password.');
+      localStorage.setItem('authToken', response.data.access_token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+
+      navigate('/profile');
+    } catch (err) {
+      if (err.response?.status === 403) {
+        // Email not verified
+        setVerificationError(true);
+        setError('Please verify your email address before logging in. Check your inbox for the verification link.');
+      } else if (err.response?.status === 401) {
+        setError('Invalid username or password.');
+      } else {
+        setError(err.response?.data?.detail || 'Login failed. Please try again.');
+      }
+      setLoading(false);
     }
   };
 
@@ -31,14 +48,29 @@ function Login() {
       <Navbar />
       <div style={styles.container}>
         <h1>Login</h1>
+        
+        {error && (
+          <div style={verificationError ? styles.warningBox : styles.errorBox}>
+            {error}
+            {verificationError && (
+              <div style={styles.verificationActions}>
+                <Link to="/resend-verification" style={styles.resendLink}>
+                  Resend Verification Email
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+        
         <form onSubmit={handleLogin} style={styles.form}>
           <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="text"
+            placeholder="Username or Email"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             style={styles.input}
             required
+            disabled={loading}
           />
           <input
             type="password"
@@ -47,11 +79,21 @@ function Login() {
             onChange={(e) => setPassword(e.target.value)}
             style={styles.input}
             required
+            disabled={loading}
           />
-          <button type="submit" style={styles.button}>Login</button>
+          <button 
+            type="submit" 
+            style={{
+              ...styles.button,
+              ...(loading ? styles.buttonDisabled : {})
+            }}
+            disabled={loading}
+          >
+            {loading ? 'Logging in...' : 'Login'}
+          </button>
         </form>
         <p style={{ marginTop: '1rem' }}>
-          Don’t have an account? <a href="/signup">Signup here</a>
+          Don't have an account? <a href="/signup">Signup here</a>
         </p>
       </div>
       <Footer />
@@ -63,7 +105,43 @@ const styles = {
   container: { maxWidth: '400px', margin: '3rem auto', padding: '2rem', border: '1px solid #ccc', borderRadius: '8px', textAlign: 'center', backgroundColor: '#fff' },
   form: { display: 'flex', flexDirection: 'column', gap: '1rem' },
   input: { padding: '0.6rem', fontSize: '1rem', borderRadius: '6px', border: '1px solid #ccc' },
-  button: { padding: '0.6rem', fontSize: '1rem', backgroundColor: '#ffcc00', border: 'none', borderRadius: '6px', cursor: 'pointer' },
+  button: { padding: '0.6rem', fontSize: '1rem', backgroundColor: '#ffcc00', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' },
+  buttonDisabled: { backgroundColor: '#ccc', cursor: 'not-allowed' },
+  errorBox: { 
+    padding: '1rem', 
+    backgroundColor: '#f8d7da', 
+    color: '#721c24', 
+    border: '1px solid #f5c6cb', 
+    borderRadius: '6px', 
+    marginBottom: '1rem',
+    fontSize: '0.9rem',
+    lineHeight: '1.5',
+  },
+  warningBox: { 
+    padding: '1rem', 
+    backgroundColor: '#fff3cd', 
+    color: '#856404', 
+    border: '1px solid #ffeaa7', 
+    borderRadius: '6px', 
+    marginBottom: '1rem',
+    fontSize: '0.9rem',
+    lineHeight: '1.5',
+  },
+  verificationActions: {
+    marginTop: '0.75rem',
+    paddingTop: '0.75rem',
+    borderTop: '1px solid #ffeaa7',
+  },
+  resendLink: {
+    display: 'inline-block',
+    padding: '0.5rem 1rem',
+    backgroundColor: '#ffcc00',
+    color: '#333',
+    textDecoration: 'none',
+    borderRadius: '4px',
+    fontWeight: 'bold',
+    fontSize: '0.9rem',
+  },
 };
 
 export default Login;

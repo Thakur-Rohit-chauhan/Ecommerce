@@ -10,6 +10,11 @@ class UserBase(BaseModel):
     full_name: str = Field(..., min_length=1, max_length=100)
     phone_number: Optional[str] = Field(None, max_length=20)
     address: Optional[str] = Field(None, max_length=500)
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    city: Optional[str] = Field(None, max_length=100)
+    state: Optional[str] = Field(None, max_length=100)
+    country: Optional[str] = Field(None, max_length=100)
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8, max_length=100)
@@ -21,6 +26,11 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = Field(None, min_length=1, max_length=100)
     phone_number: Optional[str] = Field(None, max_length=20)
     address: Optional[str] = Field(None, max_length=500)
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    city: Optional[str] = Field(None, max_length=100)
+    state: Optional[str] = Field(None, max_length=100)
+    country: Optional[str] = Field(None, max_length=100)
     is_active: Optional[bool] = None
     is_verified: Optional[bool] = None
     role: Optional[UserRole] = None
@@ -58,3 +68,9 @@ class UserListResponse(BaseModel):
 
     class Config:
         orm_mode = True
+
+class EmailVerificationRequest(BaseModel):
+    token: str = Field(..., min_length=1)
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr

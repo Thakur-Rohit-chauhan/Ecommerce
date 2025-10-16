@@ -6,7 +6,7 @@ from src.product.service import ProductService
 from src.common.exceptions import NotFoundError
 from src.auth.utils import get_current_active_user, require_seller_or_admin
 from src.auth.user.models import User
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 router = APIRouter()
@@ -16,10 +16,27 @@ async def get_all_products(
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=100),
     search: str = Query("", max_length=50),
+    user_lat: Optional[float] = Query(None, description="User's latitude for location-based filtering"),
+    user_lon: Optional[float] = Query(None, description="User's longitude for location-based filtering"),
+    max_distance_km: Optional[float] = Query(None, ge=0, description="Maximum distance in kilometers to filter products"),
+    sort_by_distance: bool = Query(False, description="Sort products by distance from user location"),
     db: AsyncSession = Depends(get_db)
 ) -> Dict[str, Any]:
+    """
+    Get all products with optional location-based filtering.
+    
+    - **page**: Page number (default: 1)
+    - **limit**: Items per page (default: 10, max: 100)
+    - **search**: Search term for title, description, or brand
+    - **user_lat**: User's latitude (optional, required for location features)
+    - **user_lon**: User's longitude (optional, required for location features)
+    - **max_distance_km**: Filter products within this distance (optional)
+    - **sort_by_distance**: Sort products by proximity to user (optional)
+    """
     try:
-        return await ProductService.get_all_products(db, page, limit, search)
+        return await ProductService.get_all_products(
+            db, page, limit, search, user_lat, user_lon, max_distance_km, sort_by_distance
+        )
     except HTTPException as e:
         raise e
     except Exception as e:

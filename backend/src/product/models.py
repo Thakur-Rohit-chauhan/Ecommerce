@@ -1,10 +1,13 @@
 from sqlmodel import SQLModel, Field, Column
 import uuid
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 import sqlalchemy.dialects.postgresql as pg
 from datetime import datetime
 from sqlmodel import Relationship
 from decimal import Decimal
+
+if TYPE_CHECKING:
+    from src.auth.user.models import User
 
 class Product(SQLModel, table=True):
     __tablename__ = "products"
@@ -32,6 +35,10 @@ class Product(SQLModel, table=True):
             nullable=False
         )
     )
+    
+    # Seller information
+    seller_id: uuid.UUID = Field(nullable=False, foreign_key="users.id", index=True)
+    seller: Optional["User"] = Relationship()
     created_at: datetime = Field(
         sa_column=Column(
             pg.TIMESTAMP(timezone=True),

@@ -2,6 +2,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import VerifyEmail from './pages/VerifyEmail';
+import ResendVerification from './pages/ResendVerification';
 import ProductDetail from './pages/ProductDetail';
 import Profile from './pages/Profile';
 import Products from './pages/Products';
@@ -34,6 +36,8 @@ function App() {
         <Route path="/products" element={<Products />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/resend-verification" element={<ResendVerification />} />
         <Route path="/products/:id" element={<ProductDetail />} />
         <Route path="/Vendorlogin" element={<VendorLogin />} />
         <Route path="/Vendorsignup" element={<VendorSignup />} />
