@@ -8,6 +8,17 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     ENVIRONMENT: str = "development"
     
+    # Email configuration
+    EMAIL_HOST: str = "smtp.gmail.com"
+    EMAIL_PORT: int = 587
+    EMAIL_USERNAME: str | None = None
+    EMAIL_PASSWORD: str | None = None
+    EMAIL_FROM: str = "noreply@artisansalley.com"
+    EMAIL_USE_TLS: bool = True
+    
+    # Frontend URL for email verification links
+    FRONTEND_URL: str = "http://localhost:5173"
+    
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore"

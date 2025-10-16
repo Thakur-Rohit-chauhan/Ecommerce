@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 from src.db.main import get_db
-from src.auth.user.schema import UserCreate, UserLogin, Token, UserResponse
+from src.auth.user.schema import (
+    UserCreate, UserLogin, Token, UserResponse, 
+    EmailVerificationRequest, ResendVerificationRequest
+)
 from src.auth.user.service import UserService
 from src.auth.utils import get_current_active_user
 from src.auth.user.models import User
@@ -60,3 +63,33 @@ async def logout(
         "message": "Successfully logged out",
         "data": {"user_id": str(current_user.id)}
     }
+
+@router.post("/verify-email", response_model=Dict[str, Any])
+async def verify_email(
+    verification_data: EmailVerificationRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Verify user's email address with the provided token.
+    """
+    try:
+        return await UserService.verify_email(db, verification_data.token)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise e
+
+@router.post("/resend-verification", response_model=Dict[str, Any])
+async def resend_verification(
+    resend_data: ResendVerificationRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Resend email verification link to user.
+    """
+    try:
+        return await UserService.resend_verification_email(db, resend_data.email)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise e

@@ -3,6 +3,8 @@ from sqlmodel import select, func
 from src.auth.user.models import User, UserRole
 from src.auth.user.schema import UserCreate, UserUpdate, UserLogin, PasswordChange
 from src.auth.utils import get_password_hash, verify_password, create_access_token
+from src.auth.verification_models import EmailVerificationToken
+from src.common.email_service import EmailService
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from fastapi import HTTPException, status
@@ -104,11 +106,28 @@ class UserService:
             user_dict = user.model_dump(exclude={"password"})
             # password = user.password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
             user_dict["hashed_password"] = get_password_hash(user.password)
+            user_dict["is_verified"] = False  # User must verify email
             
             db_user = User(**user_dict)
             db.add(db_user)
             await db.commit()
             await db.refresh(db_user)
+            
+            # Create verification token and send email
+            try:
+                verification_token = EmailVerificationToken.create_token(db_user.id)
+                db.add(verification_token)
+                await db.commit()
+                
+                # Send verification email
+                EmailService.send_verification_email(
+                    db_user.email,
+                    db_user.username,
+                    verification_token.token
+                )
+            except Exception as e:
+                # Log error but don't fail user creation
+                print(f"Failed to send verification email: {str(e)}")
             
             return ResponseHandler.create_success("User", db_user.id, db_user)
         except (ConflictError, ValidationError):
@@ -242,6 +261,12 @@ class UserService:
                     detail="Account is deactivated"
                 )
             
+            if not user.is_verified:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Please verify your email address before logging in. Check your email for the verification link."
+                )
+            
             # Update last login
             user.last_login = datetime.utcnow()
             db.add(user)
@@ -315,4 +340,146 @@ class UserService:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error changing password: {str(e)}"
+            )
+
+    @staticmethod
+    async def verify_email(db: AsyncSession, token: str) -> Dict[str, Any]:
+        """
+        Verify user's email with the provided token
+        """
+        try:
+            # Find the token
+            query = select(EmailVerificationToken).where(
+                EmailVerificationToken.token == token
+            )
+            result = await db.execute(query)
+            verification_token = result.scalar_one_or_none()
+            
+            if not verification_token:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid verification token"
+                )
+            
+            if verification_token.is_used:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Verification token has already been used"
+                )
+            
+            if verification_token.is_expired():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Verification token has expired. Please request a new one."
+                )
+            
+            # Get the user
+            user_query = select(User).where(User.id == verification_token.user_id)
+            user_result = await db.execute(user_query)
+            user = user_result.scalar_one_or_none()
+            
+            if not user:
+                raise NotFoundError("User", verification_token.user_id)
+            
+            if user.is_verified:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email is already verified"
+                )
+            
+            # Mark user as verified
+            user.is_verified = True
+            user.updated_at = datetime.utcnow()
+            
+            # Mark token as used
+            verification_token.is_used = True
+            
+            db.add(user)
+            db.add(verification_token)
+            await db.commit()
+            await db.refresh(user)
+            
+            # Send welcome email
+            try:
+                EmailService.send_welcome_email(user.email, user.username)
+            except Exception as e:
+                print(f"Failed to send welcome email: {str(e)}")
+            
+            return {
+                "message": "Email verified successfully",
+                "data": {"user_id": str(user.id), "email": user.email}
+            }
+        except (NotFoundError, HTTPException):
+            raise
+        except Exception as e:
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error verifying email: {str(e)}"
+            )
+
+    @staticmethod
+    async def resend_verification_email(db: AsyncSession, email: str) -> Dict[str, Any]:
+        """
+        Resend verification email to user
+        """
+        try:
+            # Find user by email
+            query = select(User).where(User.email == email)
+            result = await db.execute(query)
+            user = result.scalar_one_or_none()
+            
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User with this email not found"
+                )
+            
+            if user.is_verified:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email is already verified"
+                )
+            
+            # Invalidate old tokens
+            old_tokens_query = select(EmailVerificationToken).where(
+                EmailVerificationToken.user_id == user.id,
+                EmailVerificationToken.is_used == False
+            )
+            old_tokens_result = await db.execute(old_tokens_query)
+            old_tokens = old_tokens_result.scalars().all()
+            
+            for old_token in old_tokens:
+                old_token.is_used = True
+                db.add(old_token)
+            
+            # Create new verification token
+            verification_token = EmailVerificationToken.create_token(user.id)
+            db.add(verification_token)
+            await db.commit()
+            
+            # Send verification email
+            email_sent = EmailService.send_verification_email(
+                user.email,
+                user.username,
+                verification_token.token
+            )
+            
+            if not email_sent:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to send verification email"
+                )
+            
+            return {
+                "message": "Verification email sent successfully",
+                "data": {"email": user.email}
+            }
+        except HTTPException:
+            raise
+        except Exception as e:
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error resending verification email: {str(e)}"
             )

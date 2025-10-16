@@ -32,6 +32,14 @@ class User(SQLModel, table=True):
     full_name: str = Field(nullable=False, max_length=100)
     phone_number: Optional[str] = Field(default=None, max_length=20)
     address: Optional[str] = Field(default=None, max_length=500)
+    
+    # Location fields for proximity-based features
+    latitude: Optional[float] = Field(default=None)
+    longitude: Optional[float] = Field(default=None)
+    city: Optional[str] = Field(default=None, max_length=100)
+    state: Optional[str] = Field(default=None, max_length=100)
+    country: Optional[str] = Field(default=None, max_length=100)
+    
     is_active: bool = Field(default=True, nullable=False)
     is_verified: bool = Field(default=False, nullable=False)
     role: UserRole = Field(default=UserRole.NORMAL_USER, nullable=False)
