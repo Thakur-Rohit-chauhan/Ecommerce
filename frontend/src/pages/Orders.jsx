@@ -1,48 +1,81 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import api from '../Api/api';
 
 function Orders() {
-  // Dummy orders
-  const orders = [
-    {
-      id: 101,
-      date: '2025-09-20',
-      status: 'Delivered',
-      items: [
-        { name: 'Product 1', price: 499 },
-        { name: 'Product 2', price: 999 },
-      ],
-      total: 1498,
-    },
-    {
-      id: 102,
-      date: '2025-09-18',
-      status: 'Shipped',
-      items: [
-        { name: 'Product 3', price: 799 },
-      ],
-      total: 799,
-    },
-  ];
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/orders/my-orders');
+      setOrders(response.data.data || []);
+    } catch (err) {
+      console.error('Error fetching orders:', err);
+      setError('Failed to load orders');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <div style={{ padding: '2rem' }}>
+          <h1>My Orders</h1>
+          <p>Loading orders...</p>
+        </div>
+        <Footer />
+      </>
+    );
+  }
+
+  if (error) {
+    return (
+      <>
+        <Navbar />
+        <div style={{ padding: '2rem' }}>
+          <h1>My Orders</h1>
+          <p style={{ color: 'red' }}>{error}</p>
+        </div>
+        <Footer />
+      </>
+    );
+  }
 
   return (
     <>
       <Navbar />
       <div style={{ padding: '2rem' }}>
         <h1>My Orders</h1>
-        {orders.map((order) => (
-          <div key={order.id} style={styles.orderCard}>
-            <h3>Order #{order.id} - {order.status}</h3>
-            <p>Date: {order.date}</p>
-            <ul>
-              {order.items.map((item, idx) => (
-                <li key={idx}>{item.name} - ₹{item.price}</li>
-              ))}
-            </ul>
-            <strong>Total: ₹{order.total}</strong>
-          </div>
-        ))}
+        {orders.length === 0 ? (
+          <p>No orders found.</p>
+        ) : (
+          orders.map((order) => (
+            <div key={order.id} style={styles.orderCard}>
+              <h3>Order #{order.id} - {order.status}</h3>
+              <p>Date: {new Date(order.created_at).toLocaleDateString()}</p>
+              <p>Payment Status: {order.payment_status}</p>
+              <p>Shipping Address: {order.shipping_address}</p>
+              <ul>
+                {order.order_items.map((item, idx) => (
+                  <li key={idx}>
+                    {item.product.title} x {item.quantity} - ₹{item.product.price * item.quantity}
+                  </li>
+                ))}
+              </ul>
+              <strong>Total: ₹{order.total_amount}</strong>
+            </div>
+          ))
+        )}
       </div>
       <Footer />
     </>

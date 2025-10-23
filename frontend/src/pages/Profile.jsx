@@ -17,7 +17,7 @@ function Profile() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await fetch('http://localhost:8000/users/me', {
+        const res = await fetch('http://127.0.0.1:8000/users/me', {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) throw new Error('Failed to fetch profile.');
@@ -43,7 +43,7 @@ function Profile() {
   // Update profile
   const handleEditProfile = async () => {
     try {
-      const res = await fetch(`http://localhost:8000/users/${user.id}`, {
+      const res = await fetch(`http://127.0.0.1:8000/users/${user.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -69,7 +69,7 @@ function Profile() {
       return;
     }
     try {
-      const res = await fetch('http://localhost:8000/users/change-password', {
+      const res = await fetch('http://127.0.0.1:8000/users/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(passwords),

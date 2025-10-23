@@ -44,7 +44,7 @@ class Cart(SQLModel, table=True):
 
 
 class CartItem(SQLModel, table=True):
-    __tablename__ = 'cart_items'
+    _tablename_ = 'cart_items'
 
     id: uuid.UUID = Field(
         sa_column = Column(

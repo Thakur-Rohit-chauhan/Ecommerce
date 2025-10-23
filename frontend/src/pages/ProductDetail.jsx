@@ -17,7 +17,6 @@ function ProductDetail() {
         const response = await fetch(`http://localhost:8000/products/${id}`);
         if (!response.ok) throw new Error('Failed to load product');
         const result = await response.json();
-        console.log("Fetched product:", result);
         setProduct(result.data);
       } catch (err) {
         console.error('Error fetching product:', err);
@@ -29,20 +28,62 @@ function ProductDetail() {
     fetchProduct();
   }, [id]);
 
-  const handleAddToCart = () => {
+  const ensureCartExists = async (token) => {
+    let cartId = localStorage.getItem('cartId');
+
+    if (!cartId) {
+      try {
+        const res = await fetch('http://localhost:8000/carts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) throw new Error('Failed to create cart');
+        const data = await res.json();
+        cartId = data.data?.id || data.id;
+        localStorage.setItem('cartId', cartId);
+      } catch (error) {
+        console.error('Error creating cart:', error);
+        throw error;
+      }
+    }
+
+    return cartId;
+  };
+
+  const handleAddToCart = async () => {
     const token = localStorage.getItem('authToken');
+
     if (!token) {
       navigate('/login');
       return;
     }
-    let cart = JSON.parse(localStorage.getItem('cart')) || [];
-    const existing = cart.find((p) => p.id === product.id);
-    if (existing) {
-      alert('Product already in cart!');
-    } else {
-      cart.push({ ...product, quantity: 1 });
-      localStorage.setItem('cart', JSON.stringify(cart));
-      alert('Product added to cart!');
+
+    try {
+      const cartId = await ensureCartExists(token);
+
+      const response = await fetch(`http://localhost:8000/carts/${cartId}/items`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          product_id: product.id,
+          quantity: 1,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to add item to cart');
+      const result = await response.json();
+      console.log('Added to cart:', result);
+      alert('✅ Product added to cart!');
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      alert('❌ Failed to add to cart. Please try again.');
     }
   };
 

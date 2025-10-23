@@ -1,10 +1,11 @@
-from sqlmodel import SQLModel, Field, Column
+from sqlmodel import SQLModel, Field, Column, Relationship
 import uuid
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 import sqlalchemy.dialects.postgresql as pg
 from datetime import datetime
-from sqlmodel import Relationship
-from src.product.models import Product
+
+if TYPE_CHECKING:
+    from src.product.models import Product
 
 class Category(SQLModel, table=True):
     __tablename__ = 'categories'
@@ -12,8 +13,10 @@ class Category(SQLModel, table=True):
     id: uuid.UUID = Field(
         sa_column=Column(
             pg.UUID(as_uuid=True),
-            primary_key=True, default=uuid.uuid4,
-            unique=True, nullable=False
+            primary_key=True,
+            default=uuid.uuid4,
+            unique=True,
+            nullable=False
         )
     )
     name: str = Field(index=True, nullable=False, unique=True)
@@ -33,5 +36,9 @@ class Category(SQLModel, table=True):
         ),
         default=None
     )
-    products: List[Product] = Relationship(back_populates="category"
-                                          ,sa_relationship_kwargs={"lazy": "selectin"})
+    
+    # Relationship to products
+    products: List["Product"] = Relationship(
+        back_populates="category",
+        sa_relationship_kwargs={"lazy": "selectin"}
+    )

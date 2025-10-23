@@ -2,10 +2,10 @@ from sqlmodel import SQLModel, Field, Column
 import uuid
 from typing import Optional
 import sqlalchemy.dialects.postgresql as pg
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 class EmailVerificationToken(SQLModel, table=True):
-    __tablename__ = "email_verification_tokens"
+    _tablename_ = "email_verification_tokens"
 
     id: uuid.UUID = Field(
         sa_column=Column(
@@ -34,7 +34,7 @@ class EmailVerificationToken(SQLModel, table=True):
     created_at: datetime = Field(
         sa_column=Column(
             pg.TIMESTAMP(timezone=True),
-            default=datetime.utcnow,
+            default=lambda: datetime.now(timezone.utc),  # ✅ FIXED
             nullable=False
         )
     )
@@ -43,7 +43,7 @@ class EmailVerificationToken(SQLModel, table=True):
     def create_token(cls, user_id: uuid.UUID, expiry_hours: int = 24):
         """Create a new verification token"""
         token_value = str(uuid.uuid4())
-        expires_at = datetime.utcnow() + timedelta(hours=expiry_hours)
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=expiry_hours)  # ✅ FIXED
         return cls(
             user_id=user_id,
             token=token_value,
@@ -52,8 +52,7 @@ class EmailVerificationToken(SQLModel, table=True):
 
     def is_expired(self) -> bool:
         """Check if token is expired"""
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at  # ✅ FIXED
 
-    def __repr__(self):
+    def _repr_(self):
         return f"<EmailVerificationToken(id={self.id}, user_id={self.user_id}, is_used={self.is_used})>"
-

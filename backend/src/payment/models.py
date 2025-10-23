@@ -29,6 +29,13 @@ class PaymentStatus(str, Enum):
     REFUNDED = "refunded"
     PARTIALLY_REFUNDED = "partially_refunded"
 
+
+class PaymentProviderEnum(str, Enum):
+    STRIPE = "stripe"
+    RAZORPAY = "razorpay"
+    PAYPAL = "paypal"
+
+
 class PaymentProvider(str, Enum):
     STRIPE = "stripe"
     PAYPAL = "paypal"
@@ -37,7 +44,7 @@ class PaymentProvider(str, Enum):
     MANUAL = "manual"
 
 class Payment(SQLModel, table=True):
-    __tablename__ = "payments"
+    _tablename_ = "payments"
 
     id: uuid.UUID = Field(
         sa_column=Column(
@@ -110,11 +117,11 @@ class Payment(SQLModel, table=True):
     user: "User" = Relationship()
     order: "Order" = Relationship()
 
-    def __repr__(self):
+    def _repr_(self):
         return f"<Payment(id={self.id}, payment_number={self.payment_number}, status={self.status})>"
 
 class PaymentRefund(SQLModel, table=True):
-    __tablename__ = "payment_refunds"
+    _tablename_ = "payment_refunds"
 
     id: uuid.UUID = Field(
         sa_column=Column(
@@ -127,7 +134,7 @@ class PaymentRefund(SQLModel, table=True):
     )
     
     # Relationships
-    payment_id: uuid.UUID = Field(nullable=False, foreign_key="payments.id")
+    payment_id: uuid.UUID = Field(nullable=False, foreign_key="payment.id")
     user_id: uuid.UUID = Field(nullable=False, foreign_key="users.id")
     
     # Refund details
@@ -163,11 +170,11 @@ class PaymentRefund(SQLModel, table=True):
     payment: Payment = Relationship()
     user: "User" = Relationship()
 
-    def __repr__(self):
+    def _repr_(self):
         return f"<PaymentRefund(id={self.id}, refund_number={self.refund_number}, amount={self.amount})>"
 
 class PaymentMethodInfo(SQLModel, table=True):
-    __tablename__ = "payment_methods"
+    _tablename_ = "payment_methods"
 
     id: uuid.UUID = Field(
         sa_column=Column(
@@ -219,5 +226,5 @@ class PaymentMethodInfo(SQLModel, table=True):
     # Relationships
     user: "User" = Relationship()
 
-    def __repr__(self):
+    def _repr_(self):
         return f"<PaymentMethodInfo(id={self.id}, payment_method={self.payment_method}, last_four={self.card_last_four})>"

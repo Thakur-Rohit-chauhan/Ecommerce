@@ -1,42 +1,122 @@
-import React, { useState } from 'react';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
+import { useNavigate } from "react-router-dom";
+import api from "../Api/api";
+
 function Cart() {
-   const navigate = useNavigate();
-  // Dummy cart data
-  const [cartItems, setCartItems] = useState([
-    {
-      id: 1,
-      name: 'Smartphone XYZ',
-      price: 14999,
-      quantity: 1,
-      image: '/images/phone1.jpg',
-    },
-    {
-      id: 2,
-      name: 'Headphones ABC',
-      price: 1999,
-      quantity: 2,
-      image: '/images/headphones.jpg',
-    },
-  ]);
+  const navigate = useNavigate();
+  const [cart, setCart] = useState(null);
+  const [cartItems, setCartItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetchCart();
+  }, []);
+
+  // Fetch or create cart
+  const fetchCart = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        navigate("/login");
+        return;
+      }
+
+      let storedCartId = localStorage.getItem("cartId");
+      let cartData;
+
+      if (storedCartId) {
+        const response = await api.get(`/carts/${storedCartId}`);
+        cartData = response.data || response.data.data;
+      } else {
+        const createResponse = await api.post("/carts/", {});
+        cartData = createResponse.data || createResponse.data.data;
+        localStorage.setItem("cartId", cartData.id);
+      }
+
+      console.log("Cart data from backend:", cartData);
+      setCart(cartData);
+      setCartItems(cartData.cart_items || []);
+    } catch (err) {
+      console.error("Error fetching cart:", err);
+      setError("Failed to load cart.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Update item quantity
+  const handleQuantityChange = async (itemId, delta) => {
+    try {
+      const item = cartItems.find((i) => i.id === itemId);
+      if (!item) return;
+
+      const newQuantity = Math.max(1, item.quantity + delta);
+      await api.put(`/carts/${cart.id}/items/${itemId}`, { quantity: newQuantity });
+
+      setCartItems((prev) =>
+        prev.map((i) => (i.id === itemId ? { ...i, quantity: newQuantity } : i))
+      );
+    } catch (err) {
+      console.error("Error updating quantity:", err);
+      alert("Failed to update quantity.");
+    }
+  };
+
+  // Remove item
+  const handleRemove = async (itemId) => {
+    try {
+      await api.delete(`/carts/${cart.id}/items/${itemId}`);
+      setCartItems((prev) => prev.filter((i) => i.id !== itemId));
+    } catch (err) {
+      console.error("Error removing item:", err);
+      alert("Failed to remove item.");
+    }
+  };
+
+  // Checkout redirect
   const handleCheckout = () => {
-    navigate('/checkout'); // navigate to Checkout page
+    if (!cartItems.length) {
+      alert("Your cart is empty!");
+      return;
+    }
+    navigate("/checkout");
   };
-  const handleQuantityChange = (id, delta) => {
-    setCartItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item
-      )
+
+  // Calculate subtotal
+  const subtotal = cartItems.reduce(
+    (acc, item) => acc + (item.product?.price || 0) * item.quantity,
+    0
+  );
+
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <div style={styles.container}>
+          <h1>My Cart</h1>
+          <p>Loading cart...</p>
+        </div>
+        <Footer />
+      </>
     );
-  };
+  }
 
-  const handleRemove = (id) => {
-    setCartItems((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const subtotal = cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  if (error) {
+    return (
+      <>
+        <Navbar />
+        <div style={styles.container}>
+          <h1>My Cart</h1>
+          <p style={{ color: "red" }}>{error}</p>
+        </div>
+        <Footer />
+      </>
+    );
+  }
 
   return (
     <>
@@ -50,16 +130,22 @@ function Cart() {
             <div style={styles.items}>
               {cartItems.map((item) => (
                 <div key={item.id} style={styles.item}>
-                  <img src={item.image} alt={item.name} style={styles.image} />
+                  <img
+                    src={item.product?.thumbnail || "https://via.placeholder.com/200"}
+                    alt={item.product?.title || "Product"}
+                    style={styles.image}
+                  />
                   <div style={styles.details}>
-                    <h3>{item.name}</h3>
-                    <p>₹{item.price}</p>
+                    <h3>{item.product?.title || "Product"}</h3>
+                    <p>₹{item.product?.price || 0}</p>
                     <div style={styles.quantity}>
                       <button onClick={() => handleQuantityChange(item.id, -1)}>-</button>
-                      <span style={{ margin: '0 1rem' }}>{item.quantity}</span>
+                      <span style={{ margin: "0 1rem" }}>{item.quantity}</span>
                       <button onClick={() => handleQuantityChange(item.id, 1)}>+</button>
                     </div>
-                    <button onClick={() => handleRemove(item.id)} style={styles.remove}>Remove</button>
+                    <button onClick={() => handleRemove(item.id)} style={styles.remove}>
+                      Remove
+                    </button>
                   </div>
                 </div>
               ))}
@@ -69,8 +155,12 @@ function Cart() {
               <h2>Price Summary</h2>
               <p>Subtotal: ₹{subtotal}</p>
               <p>Discount: ₹0</p>
-              <p><strong>Total: ₹{subtotal}</strong></p>
-              <button onClick={handleCheckout} style={styles.checkout}>Proceed to Checkout</button>
+              <p>
+                <strong>Total: ₹{subtotal}</strong>
+              </p>
+              <button onClick={handleCheckout} style={styles.checkout}>
+                Proceed to Checkout
+              </button>
             </div>
           </div>
         )}
@@ -81,16 +171,16 @@ function Cart() {
 }
 
 const styles = {
-  container: { maxWidth: '1200px', margin: '2rem auto', padding: '0 1rem' },
-  cartWrapper: { display: 'flex', flexWrap: 'wrap', gap: '2rem' },
-  items: { flex: '2 1 600px' },
-  item: { display: 'flex', gap: '1rem', borderBottom: '1px solid #ccc', padding: '1rem 0' },
-  image: { width: '120px', height: '120px', objectFit: 'cover', borderRadius: '8px' },
+  container: { maxWidth: "1200px", margin: "2rem auto", padding: "0 1rem" },
+  cartWrapper: { display: "flex", flexWrap: "wrap", gap: "2rem" },
+  items: { flex: "2 1 600px" },
+  item: { display: "flex", gap: "1rem", borderBottom: "1px solid #ccc", padding: "1rem 0" },
+  image: { width: "120px", height: "120px", objectFit: "cover", borderRadius: "8px" },
   details: { flex: 1 },
-  quantity: { display: 'flex', alignItems: 'center', marginTop: '0.5rem' },
-  remove: { marginTop: '0.5rem', background: 'transparent', border: 'none', color: 'red', cursor: 'pointer' },
-  summary: { flex: '1 1 250px', border: '1px solid #ccc', borderRadius: '8px', padding: '1rem', height: 'fit-content' },
-  checkout: { width: '100%', padding: '0.8rem', marginTop: '1rem', backgroundColor: '#ffcc00', border: 'none', cursor: 'pointer', fontWeight: 'bold' },
+  quantity: { display: "flex", alignItems: "center", marginTop: "0.5rem" },
+  remove: { marginTop: "0.5rem", background: "transparent", border: "none", color: "red", cursor: "pointer" },
+  summary: { flex: "1 1 250px", border: "1px solid #ccc", borderRadius: "8px", padding: "1rem", height: "fit-content" },
+  checkout: { width: "100%", padding: "0.8rem", marginTop: "1rem", backgroundColor: "#ffcc00", border: "none", cursor: "pointer", fontWeight: "bold" },
 };
 
 export default Cart;

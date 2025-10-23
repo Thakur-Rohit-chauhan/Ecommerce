@@ -1,6 +1,7 @@
 import asyncio
 import subprocess
 import os
+import platform
 from datetime import datetime
 from pathlib import Path
 
@@ -15,17 +16,20 @@ MODEL_DIRS = [
 
 STATE_FILE = Path("alembic/.migration_state")
 
-
 async def run_cmd(*args):
-    """Run a shell command asynchronously and return output + exit code."""
-    process = await asyncio.create_subprocess_exec(
-        *args,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    stdout, stderr = await process.communicate()
-    return process.returncode, stdout.decode().strip(), stderr.decode().strip()
-
+    if platform.system() == "Windows":
+        # Run synchronously on Windows
+        process = subprocess.run(args, capture_output=True, text=True)
+        return process.returncode, process.stdout, process.stderr
+    else:
+        # Async on Linux/macOS
+        process = await asyncio.create_subprocess_exec(
+            *args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+        return process.returncode, stdout.decode(), stderr.decode()
 
 def get_latest_model_change_time() -> float:
     """Return the latest modification timestamp among all model files."""
@@ -74,7 +78,7 @@ async def run_auto_migrations():
     if should_autogenerate:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         message = f"auto_migration_{timestamp}"
-        print("⚙️  Detected model changes — generating new Alembic migration...")
+        print("⚙  Detected model changes — generating new Alembic migration...")
 
         code, stdout, stderr = await run_cmd("alembic", "revision", "--autogenerate", "-m", message)
         if code == 0:
@@ -82,17 +86,17 @@ async def run_auto_migrations():
             print(stdout)
             save_migration_time(latest_model_time)
         elif "No changes in schema detected" in stderr:
-            print("ℹ️  No schema differences detected by Alembic.")
+            print("ℹ  No schema differences detected by Alembic.")
             save_migration_time(latest_model_time)
         else:
             print("❌ Error generating migration:")
             print(stderr)
             return
     else:
-        print("ℹ️  No model changes detected since last migration. Skipping autogenerate.")
+        print("ℹ  No model changes detected since last migration. Skipping autogenerate.")
 
     # Always apply the latest migrations
-    print("\n⚙️  Applying Alembic migrations...")
+    print("\n⚙  Applying Alembic migrations...")
     code, stdout, stderr = await run_cmd("alembic", "upgrade", "head")
 
     if code == 0:

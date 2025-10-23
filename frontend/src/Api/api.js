@@ -1,15 +1,26 @@
-// src/api/api.js
-const dummyProducts = [
-  { id: 1, name: 'Product 1', price: 100, description: 'This is product 1', image: 'https://via.placeholder.com/150' },
-  { id: 2, name: 'Product 2', price: 150, description: 'This is product 2', image: 'https://via.placeholder.com/150' },
-  { id: 3, name: 'Product 3', price: 200, description: 'This is product 3', image: 'https://via.placeholder.com/150' },
-];
+// src/Api/api.js
+import axios from 'axios';
 
-export const fetchProducts = () => {
-  return Promise.resolve(dummyProducts);
-};
+// Replace with your backend URL
+const BASE_URL = "http://127.0.0.1:8000";
 
-export const fetchProductById = (id) => {
-  const product = dummyProducts.find(p => p.id === parseInt(id));
-  return Promise.resolve(product);
-};
+const api = axios.create({
+  baseURL: BASE_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+// Optional: Add request interceptor to include auth token automatically
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("authToken");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+export default api;
