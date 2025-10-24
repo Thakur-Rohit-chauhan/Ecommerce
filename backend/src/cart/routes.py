@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, Path, Query
+from fastapi import APIRouter, Depends, status, Path, Query, Body
 from src.db.main import get_db
 from src.cart.schema import CartCreate, CartResponse, CartItemCreate, CartItemUpdate, CartItemResponse, CartCheckout
 from src.cart.service import CartService
@@ -13,14 +13,30 @@ import uuid
 router = APIRouter()
 checkout_service = CartCheckoutService()
 
+@router.get("/me")
+async def get_my_cart(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get the current user's cart.
+    This is the PRIMARY endpoint for accessing your cart.
+    Each user has exactly ONE cart that is automatically created during signup.
+    """
+    return await CartService.get_my_cart(db, current_user)
+
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_cart(
     cart: CartCreate,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Create a new shopping cart (requires authentication)"""
-    return await CartService.create_cart(db, cart, current_user)
+    """
+    DEPRECATED: Carts are now auto-created during user signup.
+    This endpoint now just returns your existing cart.
+    Use GET /carts/me instead.
+    """
+    return await CartService.get_my_cart(db, current_user)
 
 @router.get("/{cart_id}")
 async def get_cart(
@@ -75,21 +91,41 @@ async def delete_cart(
     """Delete a specific cart (requires authentication)"""
     return await CartService.delete_cart(db, cart_id, current_user)
 
-@router.post("/{cart_id}/items")
-async def add_item_to_cart(
-    cart_id: uuid.UUID = Path(..., title="The ID of the cart to add an item to"),
-    item: CartItemCreate = None,
+@router.post("/me/items")
+async def add_item_to_my_cart(
+    item: CartItemCreate = Body(...),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Add an item to a cart (requires authentication)"""
+    """
+    Add an item to YOUR cart.
+    This is the PRIMARY endpoint for adding items to cart.
+    No need to know your cart_id - we'll automatically add to your cart.
+    """
+    # Get user's cart
+    cart_response = await CartService.get_my_cart(db, current_user)
+    cart_id = cart_response['data'].id
+    
+    return await CartService.add_item_to_cart(db, cart_id, item, current_user)
+
+@router.post("/{cart_id}/items")
+async def add_item_to_cart(
+    cart_id: uuid.UUID = Path(..., title="The ID of the cart to add an item to"),
+    item: CartItemCreate = Body(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    LEGACY: Add an item to a specific cart by ID.
+    Use POST /carts/me/items instead for simpler usage.
+    """
     return await CartService.add_item_to_cart(db, cart_id, item, current_user)
 
 @router.put("/{cart_id}/items/{item_id}")
 async def update_cart_item(
     cart_id: uuid.UUID = Path(..., title="The ID of the cart"),
     item_id: uuid.UUID = Path(..., title="The ID of the item to update"),
-    item_update: CartItemUpdate = None,
+    item_update: CartItemUpdate = Body(...),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):

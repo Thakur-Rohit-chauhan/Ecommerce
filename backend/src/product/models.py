@@ -11,6 +11,12 @@ if TYPE_CHECKING:
     from src.cart.models import CartItem
 
 class Product(SQLModel, table=True):
+    """
+    Product - Items that can be purchased
+    Each product belongs to ONE seller (user with seller role)
+    Each product belongs to ONE category
+    Each product can be in MANY carts (via CartItems)
+    """
     __tablename__ = "products"
 
     id: uuid.UUID = Field(
@@ -26,19 +32,22 @@ class Product(SQLModel, table=True):
     thumbnail: str = Field(nullable=False)
     images: List[str] = Field(sa_column=Column(pg.ARRAY(pg.TEXT), nullable=False))
 
-    # Seller
+    # MANY products belong to ONE seller (user)
     seller_id: uuid.UUID = Field(foreign_key="users.id", nullable=False, index=True)
-    seller: Optional["User"] = Relationship()
+    seller: "User" = Relationship(back_populates="products")
+    
+    # MANY products belong to ONE category
+    category_id: uuid.UUID = Field(foreign_key="categories.id", nullable=False, index=True)
+    category: "Category" = Relationship(back_populates="products")
 
+    # Timestamps
     created_at: datetime = Field(sa_column=Column(pg.TIMESTAMP(timezone=True), default=datetime.utcnow, nullable=False))
     updated_at: Optional[datetime] = Field(
         sa_column=Column(pg.TIMESTAMP(timezone=True), default=None, onupdate=datetime.utcnow),
         default=None
     )
 
-    category_id: uuid.UUID = Field(foreign_key="categories.id", nullable=False)
-    category: Optional["Category"] = Relationship(back_populates="products")
-
+    # ONE product can be in MANY carts (via cart items)
     cart_items: List["CartItem"] = Relationship(back_populates="product")
 
     def __repr__(self):

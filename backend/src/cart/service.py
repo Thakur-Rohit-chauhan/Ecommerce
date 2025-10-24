@@ -13,7 +13,30 @@ import uuid
 
 class CartService:
     @staticmethod
+    async def get_my_cart(db: AsyncSession, current_user: User) -> Cart:
+        """
+        Get the current user's cart.
+        This is the PRIMARY way users should access their cart.
+        Each user has exactly ONE cart (created during signup).
+        """
+        query = select(Cart).where(Cart.user_id == current_user.id)
+        result = await db.execute(query)
+        cart = result.scalar_one_or_none()
+        
+        if not cart:
+            # Auto-create cart if somehow it doesn't exist (shouldn't happen)
+            cart = Cart(user_id=current_user.id, total_price=Decimal('0.00'))
+            db.add(cart)
+            await db.commit()
+            await db.refresh(cart)
+            
+        return ResponseHandler.get_single_success("Cart", cart.id, cart)
+    
+    @staticmethod
     async def get_cart(db: AsyncSession, cart_id: uuid.UUID, current_user: User) -> Cart:
+        """
+        Get a specific cart by ID (admin endpoint or legacy support)
+        """
         query = select(Cart).where(Cart.id == cart_id)
         result = await db.execute(query)
         cart = result.scalar_one_or_none()
@@ -21,26 +44,30 @@ class CartService:
         if not cart:
             raise NotFoundError("Cart", cart_id)
         
-        # For now, we'll allow any authenticated user to view any cart
-        # In a real application, you might want to associate carts with users
-        # and restrict access to own carts only
+        # Only allow users to access their own cart (except admins)
+        if cart.user_id != current_user.id and current_user.role != UserRole.ADMIN:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only access your own cart"
+            )
             
         return ResponseHandler.get_single_success("Cart", cart_id, cart)
+    
+    @staticmethod
+    async def get_or_create_user_cart(db: AsyncSession, current_user: User) -> Cart:
+        """
+        DEPRECATED: Use get_my_cart() instead.
+        Get user's cart or create one if it doesn't exist.
+        """
+        return await CartService.get_my_cart(db, current_user)
 
     @staticmethod
     async def create_cart(db: AsyncSession, cart: CartCreate, current_user: User) -> Cart:
-        # Only normal users and sellers can create carts
-        if current_user.role not in [UserRole.NORMAL_USER, UserRole.SELLER, UserRole.ADMIN]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only authenticated users can create carts"
-            )
-        
-        db_cart = Cart(**cart.dict())
-        db.add(db_cart)
-        await db.commit()
-        await db.refresh(db_cart)
-        return ResponseHandler.create_success("Cart", db_cart.id, db_cart)
+        """
+        DEPRECATED: Carts are now auto-created during user signup.
+        This just returns the user's existing cart.
+        """
+        return await CartService.get_my_cart(db, current_user)
 
     @staticmethod
     async def delete_cart(db: AsyncSession, cart_id: uuid.UUID, current_user: User) -> None:

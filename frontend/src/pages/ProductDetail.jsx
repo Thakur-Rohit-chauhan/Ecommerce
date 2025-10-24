@@ -28,44 +28,22 @@ function ProductDetail() {
     fetchProduct();
   }, [id]);
 
-  const ensureCartExists = async (token) => {
-    let cartId = localStorage.getItem('cartId');
-
-    if (!cartId) {
-      try {
-        const res = await fetch('http://localhost:8000/carts', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-
-        if (!res.ok) throw new Error('Failed to create cart');
-        const data = await res.json();
-        cartId = data.data?.id || data.id;
-        localStorage.setItem('cartId', cartId);
-      } catch (error) {
-        console.error('Error creating cart:', error);
-        throw error;
-      }
-    }
-
-    return cartId;
-  };
+  // No longer needed - user cart is auto-created on signup and accessed via /carts/me
 
   const handleAddToCart = async () => {
     const token = localStorage.getItem('authToken');
 
     if (!token) {
+      alert('Please log in to add items to cart');
       navigate('/login');
       return;
     }
 
     try {
-      const cartId = await ensureCartExists(token);
+      console.log('Adding product to cart:', product.id);
 
-      const response = await fetch(`http://localhost:8000/carts/${cartId}/items`, {
+      // Use the simplified endpoint - no cart ID needed!
+      const response = await fetch('http://localhost:8000/carts/me/items', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -77,9 +55,20 @@ function ProductDetail() {
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to add item to cart');
       const result = await response.json();
-      console.log('Added to cart:', result);
+      console.log('Response:', result);
+
+      if (!response.ok) {
+        // Check if it's an authentication error
+        if (response.status === 401) {
+          alert('Your session has expired. Please log in again.');
+          localStorage.removeItem('authToken');
+          navigate('/login');
+          return;
+        }
+        throw new Error(result.detail || result.message || 'Failed to add item to cart');
+      }
+      
       alert('✅ Product added to cart!');
     } catch (error) {
       console.error('Error adding to cart:', error);

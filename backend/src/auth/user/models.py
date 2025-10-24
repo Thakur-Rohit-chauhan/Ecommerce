@@ -8,6 +8,8 @@ from enum import Enum
 
 if TYPE_CHECKING:
     from src.orders.models import Order
+    from src.cart.models import Cart
+    from src.product.models import Product
 
 class UserRole(str, Enum):
     NORMAL_USER = "normal_user"
@@ -74,7 +76,14 @@ class User(SQLModel, table=True):
     )
 
     # Relationships
+    # Each user has exactly ONE cart (one-to-one)
+    cart: Optional["Cart"] = Relationship(back_populates="user", sa_relationship_kwargs={"uselist": False})
+    
+    # Each user can have MANY orders (one-to-many)
     orders: List["Order"] = Relationship(back_populates="user")
+    
+    # Each seller can have MANY products (one-to-many) - only if user is a seller
+    products: List["Product"] = Relationship(back_populates="seller")
 
     def __repr__(self):
         return f"<User(id={self.id}, username={self.username}, role={self.role})>"

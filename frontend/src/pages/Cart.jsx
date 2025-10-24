@@ -15,7 +15,7 @@ function Cart() {
     fetchCart();
   }, []);
 
-  // Fetch or create cart
+  // Fetch user's cart (auto-created on signup)
   const fetchCart = async () => {
     try {
       setLoading(true);
@@ -25,24 +25,21 @@ function Cart() {
         return;
       }
 
-      let storedCartId = localStorage.getItem("cartId");
-      let cartData;
-
-      if (storedCartId) {
-        const response = await api.get(`/carts/${storedCartId}`);
-        cartData = response.data || response.data.data;
-      } else {
-        const createResponse = await api.post("/carts/", {});
-        cartData = createResponse.data || createResponse.data.data;
-        localStorage.setItem("cartId", cartData.id);
-      }
+      // Use the simplified endpoint - just get MY cart
+      const response = await api.get("/carts/me");
+      const cartData = response.data?.data || response.data;
 
       console.log("Cart data from backend:", cartData);
       setCart(cartData);
       setCartItems(cartData.cart_items || []);
     } catch (err) {
       console.error("Error fetching cart:", err);
-      setError("Failed to load cart.");
+      if (err.response?.status === 401) {
+        localStorage.removeItem("authToken");
+        navigate("/login");
+      } else {
+        setError("Failed to load cart.");
+      }
     } finally {
       setLoading(false);
     }

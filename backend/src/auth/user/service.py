@@ -5,12 +5,14 @@ from src.auth.user.schema import UserCreate, UserUpdate, UserLogin, PasswordChan
 from src.auth.utils import get_password_hash, verify_password, create_access_token
 from src.auth.verification_models import EmailVerificationToken
 from src.common.email_service import EmailService
+from src.cart.models import Cart
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from fastapi import HTTPException, status
 from src.common.response import ResponseHandler
 from src.common.exceptions import NotFoundError, ConflictError, ValidationError
 from src.config import Config
+from decimal import Decimal
 import uuid
 
 class UserService:
@@ -112,6 +114,16 @@ class UserService:
             db.add(db_user)
             await db.commit()
             await db.refresh(db_user)
+            
+            # Create a cart for the new user
+            try:
+                user_cart = Cart(user_id=db_user.id, total_price=Decimal('0.00'))
+                db.add(user_cart)
+                await db.commit()
+                print(f"Created cart for user {db_user.id}")
+            except Exception as e:
+                print(f"Failed to create cart for user: {str(e)}")
+                # Don't fail user creation if cart creation fails
             
             # Create verification token and send email
             try:
