@@ -20,16 +20,30 @@ function Login() {
 
     try {
       await authService.login({ username, password });
+      setLoading(false);
       navigate('/profile');
     } catch (err) {
+      console.error('Login error:', err);
       if (err.response?.status === 403) {
         // Email not verified
         setVerificationError(true);
         setError('Please verify your email address before logging in. Check your inbox for the verification link.');
       } else if (err.response?.status === 401) {
         setError('Invalid username or password.');
+      } else if (err.response?.status === 422) {
+        // Validation error
+        const errorDetails = err.response?.data?.detail;
+        if (Array.isArray(errorDetails)) {
+          const errorMsg = errorDetails.map(e => `${e.loc.join('.')}: ${e.msg}`).join(', ');
+          setError(errorMsg || 'Invalid input. Please check your credentials.');
+        } else if (typeof errorDetails === 'string') {
+          setError(errorDetails);
+        } else {
+          setError('Invalid input. Please check your credentials.');
+        }
       } else {
-        setError(err.response?.data?.detail || 'Login failed. Please try again.');
+        const errorMsg = err.response?.data?.detail;
+        setError(typeof errorMsg === 'string' ? errorMsg : 'Login failed. Please try again.');
       }
       setLoading(false);
     }

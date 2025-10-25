@@ -23,6 +23,20 @@ const orderService = {
   },
 
   /**
+   * Get current user's orders
+   * @param {Object} params - Query parameters
+   *   - skip: Skip number
+   *   - limit: Items per page
+   *   - status: Filter by status
+   *   - payment_status: Filter by payment status
+   * @returns {Promise}
+   */
+  getMyOrders: async (params = {}) => {
+    const response = await api.get('/orders/my-orders', { params });
+    return response.data;
+  },
+
+  /**
    * Get order by ID
    * @param {string} orderId - Order ID
    * @returns {Promise}
@@ -49,7 +63,9 @@ const orderService = {
    * @returns {Promise}
    */
   updateOrderStatus: async (orderId, statusData) => {
-    const response = await api.put(`/orders/${orderId}/status`, statusData);
+    // Backend expects status as a query parameter, not in the body
+    const params = { status: statusData.status };
+    const response = await api.put(`/orders/${orderId}/status`, null, { params });
     return response.data;
   },
 
@@ -83,7 +99,7 @@ const orderService = {
    * @returns {Promise}
    */
   getSellerOrders: async (params = {}) => {
-    const response = await api.get('/orders/seller/orders', { params });
+    const response = await api.get('/orders/', { params });
     return response.data;
   },
 

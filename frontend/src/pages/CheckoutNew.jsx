@@ -120,39 +120,57 @@ function CheckoutNew() {
     try {
       // Create order
       const orderData = {
-        cart_id: cart.id,
         shipping_address: `${shippingInfo.address}, ${shippingInfo.city}, ${shippingInfo.state} ${shippingInfo.zipCode}`,
         billing_address: `${shippingInfo.address}, ${shippingInfo.city}, ${shippingInfo.state} ${shippingInfo.zipCode}`,
-        payment_method: paymentMethod,
-        contact_phone: shippingInfo.phone,
-        contact_email: shippingInfo.email,
+        shipping_notes: paymentDetails.payment_notes || '',
+        order_items: cartItems.map(item => ({
+          product_id: item.product_id,
+          quantity: item.quantity
+        }))
       };
 
+      console.log('Creating order with data:', orderData);
       const orderResponse = await orderService.createOrder(orderData);
+      console.log('Order response:', orderResponse);
       const order = orderResponse.data;
+      console.log('Order data:', order);
 
-      // Create payment
-      const paymentData = {
-        order_id: order.id,
-        amount: calculateTotal(),
-        payment_method: paymentMethod,
-        payment_details: paymentDetails,
-      };
-
-      const paymentResponse = await paymentService.createPayment(paymentData);
-      const payment = paymentResponse.data;
-
-      // Process payment if not manual
-      if (paymentMethod !== 'manual') {
-        await paymentService.processPayment(payment.id, paymentMethod, paymentDetails);
-      }
-
-      // Success!
+      // Order created successfully! Show success popup
       alert('✅ Order placed successfully!');
-      navigate(`/orders`);
+      
+      // Trigger order update event for seller dashboard
+      window.dispatchEvent(new CustomEvent('orderPlaced', { 
+        detail: { order: order } 
+      }));
     } catch (err) {
       console.error('Error placing order:', err);
-      setError(err.response?.data?.detail || 'Failed to place order. Please try again.');
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response,
+        status: err.response?.status,
+        data: err.response?.data
+      });
+      
+      let errorMessage = 'Failed to place order. Please try again.';
+      
+      if (err.response?.data?.detail) {
+        if (typeof err.response.data.detail === 'string') {
+          errorMessage = err.response.data.detail;
+        } else if (Array.isArray(err.response.data.detail)) {
+          errorMessage = err.response.data.detail.map(e => e.msg || e).join(', ');
+        } else if (typeof err.response.data.detail === 'object') {
+          errorMessage = JSON.stringify(err.response.data.detail);
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      // Check for CORS error
+      if (err.message?.includes('CORS') || err.message?.includes('Access-Control-Allow-Origin')) {
+        errorMessage = 'CORS Error: Please check if the backend server is running and CORS is configured correctly.';
+      }
+      
+      setError(errorMessage);
       setProcessing(false);
     }
   };
@@ -209,7 +227,7 @@ function CheckoutNew() {
 
         {error && <div style={styles.errorBox}>{error}</div>}
 
-        <div style={styles.checkoutGrid}>
+        <div style={styles.checkoutGrid} className="checkout-grid">
           {/* Left side - Forms */}
           <div style={styles.leftPanel}>
             {/* Shipping Information */}
@@ -469,9 +487,6 @@ const styles = {
     display: 'grid',
     gridTemplateColumns: '1fr 400px',
     gap: '2rem',
-    '@media (max-width: 768px)': {
-      gridTemplateColumns: '1fr',
-    },
   },
   leftPanel: {
     display: 'flex',
@@ -518,7 +533,7 @@ const styles = {
     transition: 'all 0.2s',
   },
   paymentMethodSelected: {
-    borderColor: '#ffcc00',
+    border: '2px solid #ffcc00',
     backgroundColor: '#fffef5',
   },
   paymentIcon: {

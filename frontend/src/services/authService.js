@@ -14,12 +14,9 @@ const authService = {
    * @returns {Promise} - { access_token, token_type, expires_in, user }
    */
   login: async (credentials) => {
-    const formData = new FormData();
-    formData.append('username', credentials.username);
-    formData.append('password', credentials.password);
-    
-    const response = await api.post('/auth/login', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+    const response = await api.post('/auth/login', {
+      username: credentials.username,
+      password: credentials.password
     });
     
     // Store token and user info

@@ -22,6 +22,7 @@ class CartItemResponse(CartItemBase):
     id: uuid.UUID
     cart_id: uuid.UUID
     subtotal_price: Decimal
+    product: Optional[dict] = None  # Product details will be included from the relationship
     
     class Config:
         from_attributes = True

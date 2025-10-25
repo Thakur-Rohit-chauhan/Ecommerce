@@ -13,7 +13,7 @@ const dashboardService = {
    * @returns {Promise}
    */
   getDashboardStats: async () => {
-    const response = await api.get('/dashboard/stats');
+    const response = await api.get('/dashboard/seller');
     return response.data;
   },
 

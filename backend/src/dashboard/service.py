@@ -13,6 +13,7 @@ from decimal import Decimal
 import uuid
 import random
 import string
+from sqlalchemy.orm import selectinload
 
 class DashboardService:
     @staticmethod
@@ -50,7 +51,7 @@ class DashboardService:
                 }
             
             # Get orders for seller's products
-            orders_query = select(Order).join(OrderItem).where(
+            orders_query = select(Order).options(selectinload(Order.user), selectinload(Order.order_items)).join(OrderItem).where(
                 and_(
                     OrderItem.product_id.in_(product_ids),
                     Order.created_at >= start_date
@@ -65,7 +66,7 @@ class DashboardService:
             pending_orders = len([o for o in orders if o.status in [OrderStatus.PENDING, OrderStatus.CONFIRMED, OrderStatus.PROCESSING]])
             
             # Get recent orders (last 10)
-            recent_orders_query = select(Order).join(OrderItem).where(
+            recent_orders_query = select(Order).options(selectinload(Order.user), selectinload(Order.order_items)).join(OrderItem).where(
                 and_(
                     OrderItem.product_id.in_(product_ids),
                     Order.created_at >= start_date
@@ -165,7 +166,7 @@ class DashboardService:
             start_date = end_date - timedelta(days=days)
             
             # Get all orders in date range
-            orders_query = select(Order).where(Order.created_at >= start_date)
+            orders_query = select(Order).options(selectinload(Order.user), selectinload(Order.order_items)).where(Order.created_at >= start_date)
             orders_result = await db.execute(orders_query)
             orders = orders_result.scalars().all()
             
@@ -187,7 +188,7 @@ class DashboardService:
             total_revenue = sum(order.total_amount for order in orders if order.payment_status == PaymentStatus.PAID)
             
             # Get recent orders
-            recent_orders_query = select(Order).order_by(desc(Order.created_at)).limit(10)
+            recent_orders_query = select(Order).options(selectinload(Order.user), selectinload(Order.order_items)).order_by(desc(Order.created_at)).limit(10)
             recent_orders_result = await db.execute(recent_orders_query)
             recent_orders = recent_orders_result.scalars().all()
             

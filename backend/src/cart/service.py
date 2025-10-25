@@ -20,7 +20,11 @@ class CartService:
         This is the PRIMARY way users should access their cart.
         Each user has exactly ONE cart (created during signup).
         """
-        query = select(Cart).where(Cart.user_id == current_user.id)
+        from sqlalchemy.orm import selectinload
+        
+        query = select(Cart).options(
+            selectinload(Cart.cart_items).selectinload(CartItem.product)
+        ).where(Cart.user_id == current_user.id)
         result = await db.execute(query)
         cart = result.scalar_one_or_none()
         
@@ -30,15 +34,51 @@ class CartService:
             db.add(cart)
             await db.commit()
             await db.refresh(cart)
+        
+        # Convert cart to dict with nested relationships
+        cart_dict = {
+            "id": cart.id,
+            "user_id": cart.user_id,
+            "total_price": cart.total_price,
+            "created_at": cart.created_at,
+            "updated_at": cart.updated_at,
+            "cart_items": [
+                {
+                    "id": item.id,
+                    "cart_id": item.cart_id,
+                    "product_id": item.product_id,
+                    "quantity": item.quantity,
+                    "subtotal_price": item.subtotal_price,
+                    "product": {
+                        "id": item.product.id,
+                        "title": item.product.title,
+                        "description": item.product.description,
+                        "price": item.product.price,
+                        "discount_percentage": item.product.discount_percentage,
+                        "rating": item.product.rating,
+                        "stock": item.product.stock,
+                        "brand": item.product.brand,
+                        "thumbnail": item.product.thumbnail,
+                        "images": item.product.images,
+                        "category_id": item.product.category_id,
+                    } if item.product else None
+                }
+                for item in cart.cart_items
+            ]
+        }
             
-        return ResponseHandler.get_single_success("Cart", cart.id, cart)
+        return ResponseHandler.get_single_success("Cart", cart.id, cart_dict)
     
     @staticmethod
     async def get_cart(db: AsyncSession, cart_id: uuid.UUID, current_user: User) -> Cart:
         """
         Get a specific cart by ID (admin endpoint or legacy support)
         """
-        query = select(Cart).where(Cart.id == cart_id)
+        from sqlalchemy.orm import selectinload
+        
+        query = select(Cart).options(
+            selectinload(Cart.cart_items).selectinload(CartItem.product)
+        ).where(Cart.id == cart_id)
         result = await db.execute(query)
         cart = result.scalar_one_or_none()
         
@@ -51,8 +91,40 @@ class CartService:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You can only access your own cart"
             )
+        
+        # Convert cart to dict with nested relationships
+        cart_dict = {
+            "id": cart.id,
+            "user_id": cart.user_id,
+            "total_price": cart.total_price,
+            "created_at": cart.created_at,
+            "updated_at": cart.updated_at,
+            "cart_items": [
+                {
+                    "id": item.id,
+                    "cart_id": item.cart_id,
+                    "product_id": item.product_id,
+                    "quantity": item.quantity,
+                    "subtotal_price": item.subtotal_price,
+                    "product": {
+                        "id": item.product.id,
+                        "title": item.product.title,
+                        "description": item.product.description,
+                        "price": item.product.price,
+                        "discount_percentage": item.product.discount_percentage,
+                        "rating": item.product.rating,
+                        "stock": item.product.stock,
+                        "brand": item.product.brand,
+                        "thumbnail": item.product.thumbnail,
+                        "images": item.product.images,
+                        "category_id": item.product.category_id,
+                    } if item.product else None
+                }
+                for item in cart.cart_items
+            ]
+        }
             
-        return ResponseHandler.get_single_success("Cart", cart_id, cart)
+        return ResponseHandler.get_single_success("Cart", cart_id, cart_dict)
     
     @staticmethod
     async def get_or_create_user_cart(db: AsyncSession, current_user: User) -> Cart:

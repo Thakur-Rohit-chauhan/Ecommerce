@@ -10,10 +10,23 @@ function Cart() {
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [debugInfo, setDebugInfo] = useState("");
 
   useEffect(() => {
     fetchCart();
-  }, []);
+    
+    // Listen for cart update events
+    const handleCartUpdate = () => {
+      console.log('Cart updated event received, refreshing cart...');
+      fetchCart();
+    };
+    
+    window.addEventListener('cartUpdated', handleCartUpdate);
+    
+    return () => {
+      window.removeEventListener('cartUpdated', handleCartUpdate);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch user's cart (auto-created on signup)
   const fetchCart = async () => {
@@ -25,8 +38,12 @@ function Cart() {
       }
 
       const response = await cartService.getMyCart();
+      console.log('Cart API response:', response);
       const cartData = response.data;
+      console.log('Cart data:', cartData);
+      console.log('Cart items:', cartData.cart_items);
 
+      setDebugInfo(`Cart ID: ${cartData.id}, Items: ${cartData.cart_items?.length || 0}`);
       setCart(cartData);
       setCartItems(cartData.cart_items || []);
     } catch (err) {
@@ -118,8 +135,12 @@ function Cart() {
       <Navbar />
       <div style={styles.container}>
         <h1>My Cart</h1>
+        {debugInfo && <p style={{ color: 'blue', fontSize: '0.9rem' }}>{debugInfo}</p>}
         {cartItems.length === 0 ? (
-          <p>Your cart is empty.</p>
+          <div>
+            <p>Your cart is empty.</p>
+            {cart && <p style={{ color: 'gray', fontSize: '0.9rem' }}>Cart ID: {cart.id}</p>}
+          </div>
         ) : (
           <div style={styles.cartWrapper}>
             <div style={styles.items}>

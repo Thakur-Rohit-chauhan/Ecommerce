@@ -15,7 +15,7 @@ function Orders() {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const response = await orderService.getAllOrders();
+      const response = await orderService.getMyOrders();
       setOrders(response.data || []);
     } catch (err) {
       console.error('Error fetching orders:', err);
@@ -68,7 +68,7 @@ function Orders() {
               <ul>
                 {order.order_items.map((item, idx) => (
                   <li key={idx}>
-                    {item.product.title} x {item.quantity} - ₹{item.product.price * item.quantity}
+                    {item.product_name} x {item.quantity} - ₹{item.subtotal}
                   </li>
                 ))}
               </ul>

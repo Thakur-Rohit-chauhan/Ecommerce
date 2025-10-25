@@ -25,11 +25,19 @@ function SellerDashboard() {
     brand: '',
     stock: '',
     discount_percentage: 0,
+    rating: 0,
     thumbnail: '',
     images: '',
   });
 
   useEffect(() => {
+    // Check if user is authenticated
+    if (!authService.isAuthenticated()) {
+      alert('Please login to access the seller dashboard');
+      navigate('/login');
+      return;
+    }
+
     // Check if user is seller
     if (!authService.isSeller() && !authService.isAdmin()) {
       alert('You must be a seller to access this page');
@@ -43,23 +51,94 @@ function SellerDashboard() {
   const fetchData = async () => {
     try {
       setLoading(true);
+      setError('');
 
-      // Fetch all data in parallel
-      const [statsRes, productsRes, ordersRes, categoriesRes] = await Promise.all([
-        dashboardService.getDashboardStats().catch(err => ({ data: null })),
-        productService.getAllProducts().catch(err => ({ data: [] })),
-        orderService.getSellerOrders().catch(err => ({ data: [] })),
-        categoryService.getAllCategories().catch(err => ({ data: [] })),
+      // Fetch categories first (no auth required for demo)
+      let categoriesRes = null;
+      try {
+        categoriesRes = await categoryService.getAllCategories();
+      } catch (err) {
+        console.error('Categories error:', err);
+      }
+
+      // Extract categories
+      if (categoriesRes) {
+        const categoriesData = categoriesRes.data;
+        if (categoriesData && categoriesData.data) {
+          setCategories(Array.isArray(categoriesData.data) ? categoriesData.data : []);
+        } else if (Array.isArray(categoriesData)) {
+          setCategories(categoriesData);
+        }
+      }
+
+      // Fetch other data in parallel
+      const [statsRes, productsRes, ordersRes] = await Promise.all([
+        dashboardService.getDashboardStats().catch(err => {
+          console.error('Dashboard stats error:', err.response?.data || err.message);
+          return null;
+        }),
+        productService.getMyProducts().catch(err => {
+          console.error('Products error:', err.response?.data || err.message);
+          return null;
+        }),
+        orderService.getSellerOrders().catch(err => {
+          console.error('Orders error:', err.response?.data || err.message);
+          return null;
+        }),
       ]);
 
-      setStats(statsRes.data);
-      setProducts(Array.isArray(productsRes.data) ? productsRes.data : []);
-      setOrders(Array.isArray(ordersRes.data) ? ordersRes.data : []);
-      setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : []);
+      // Extract dashboard stats
+      if (statsRes && statsRes.data) {
+        const statsData = statsRes.data.data || statsRes.data;
+        setStats(statsData);
+      } else {
+        console.log('No dashboard stats available');
+      }
+
+      // Extract products
+      console.log('Products response:', productsRes);
+      if (productsRes) {
+        // productsRes is already the data object from productService.getMyProducts()
+        // Check multiple possible structures
+        let productsArray = [];
+        
+        if (productsRes.data && Array.isArray(productsRes.data)) {
+          productsArray = productsRes.data;
+          console.log('Products from data.data:', productsArray);
+        } else if (Array.isArray(productsRes)) {
+          productsArray = productsRes;
+          console.log('Products from direct array:', productsArray);
+        } else if (productsRes.data && typeof productsRes.data === 'object') {
+          // Try to extract from nested structure
+          if (Array.isArray(productsRes.data.data)) {
+            productsArray = productsRes.data.data;
+            console.log('Products from data.data.data:', productsArray);
+          }
+        }
+        
+        console.log('Final products array length:', productsArray.length);
+        setProducts(productsArray);
+      } else {
+        console.log('No products response available');
+      }
+
+      // Extract orders
+      if (ordersRes && ordersRes.data) {
+        const ordersData = ordersRes.data;
+        if (ordersData && ordersData.data) {
+          setOrders(Array.isArray(ordersData.data) ? ordersData.data : []);
+        } else if (Array.isArray(ordersData)) {
+          setOrders(ordersData);
+        }
+        console.log('Loaded orders:', orders.length);
+      } else {
+        console.log('No orders available');
+      }
+
       setLoading(false);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
-      setError('Failed to load dashboard data');
+      setError('Failed to load dashboard data: ' + (err.response?.data?.detail || err.message));
       setLoading(false);
     }
   };
@@ -79,6 +158,7 @@ function SellerDashboard() {
       brand: '',
       stock: '',
       discount_percentage: 0,
+      rating: 0,
       thumbnail: '',
       images: '',
     });
@@ -95,6 +175,7 @@ function SellerDashboard() {
       brand: product.brand || '',
       stock: product.stock,
       discount_percentage: product.discount_percentage || 0,
+      rating: product.rating || 0,
       thumbnail: product.thumbnail || '',
       images: Array.isArray(product.images) ? product.images.join(', ') : '',
     });
@@ -108,7 +189,8 @@ function SellerDashboard() {
         price: parseFloat(productForm.price),
         stock: parseInt(productForm.stock),
         discount_percentage: parseFloat(productForm.discount_percentage) || 0,
-        images: productForm.images ? productForm.images.split(',').map(s => s.trim()) : [],
+        rating: parseFloat(productForm.rating) || 0,
+        images: productForm.images ? productForm.images.split(',').map(s => s.trim()).filter(s => s) : [],
       };
 
       if (editingProduct) {
@@ -147,7 +229,7 @@ function SellerDashboard() {
       fetchData();
     } catch (err) {
       console.error('Error updating order status:', err);
-      alert('❌ Failed to update order status');
+      alert('❌ Failed to update order status: ' + (err.response?.data?.detail || err.message));
     }
   };
 
@@ -265,10 +347,11 @@ function SellerDashboard() {
                     <input
                       type="text"
                       name="brand"
-                      placeholder="Brand"
+                      placeholder="Brand *"
                       value={productForm.brand}
                       onChange={handleProductFormChange}
                       style={styles.input}
+                      required
                     />
                     <input
                       type="number"
@@ -303,6 +386,17 @@ function SellerDashboard() {
                     </select>
                     <input
                       type="number"
+                      name="rating"
+                      placeholder="Rating (0-5)"
+                      value={productForm.rating}
+                      onChange={handleProductFormChange}
+                      style={styles.input}
+                      step="0.1"
+                      min="0"
+                      max="5"
+                    />
+                    <input
+                      type="number"
                       name="discount_percentage"
                       placeholder="Discount %"
                       value={productForm.discount_percentage}
@@ -321,10 +415,11 @@ function SellerDashboard() {
                     <input
                       type="text"
                       name="thumbnail"
-                      placeholder="Thumbnail URL"
+                      placeholder="Thumbnail URL *"
                       value={productForm.thumbnail}
                       onChange={handleProductFormChange}
                       style={{ ...styles.input, gridColumn: '1 / -1' }}
+                      required
                     />
                     <input
                       type="text"
@@ -349,54 +444,58 @@ function SellerDashboard() {
 
             {/* Products Table */}
             <div style={styles.tableContainer}>
-              <table style={styles.table}>
-                <thead>
-                  <tr>
-                    <th>Image</th>
-                    <th>Title</th>
-                    <th>Price</th>
-                    <th>Stock</th>
-                    <th>Category</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.map(product => {
-                    const category = categories.find(c => c.id === product.category_id);
-                    return (
-                      <tr key={product.id}>
-                        <td>
-                          <img
-                            src={product.thumbnail || 'https://via.placeholder.com/50'}
-                            alt={product.title}
-                            style={styles.productThumb}
-                          />
-                        </td>
-                        <td>{product.title}</td>
-                        <td>₹{product.price}</td>
-                        <td style={{ color: product.stock === 0 ? 'red' : 'inherit' }}>
-                          {product.stock}
-                        </td>
-                        <td>{category?.name || 'Unknown'}</td>
-                        <td>
-                          <button
-                            onClick={() => handleEditProduct(product)}
-                            style={styles.editButton}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeleteProduct(product.id)}
-                            style={styles.deleteButton}
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              {products.length === 0 ? (
+                <p>No products yet. Click "Add Product" to create one.</p>
+              ) : (
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Image</th>
+                      <th>Title</th>
+                      <th>Price</th>
+                      <th>Stock</th>
+                      <th>Category</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {products.map(product => {
+                      const category = categories.find(c => c.id === product.category_id);
+                      return (
+                        <tr key={product.id}>
+                          <td>
+                            <img
+                              src={product.thumbnail || 'https://via.placeholder.com/50'}
+                              alt={product.title}
+                              style={styles.productThumb}
+                            />
+                          </td>
+                          <td>{product.title}</td>
+                          <td>₹{product.price}</td>
+                          <td style={{ color: product.stock === 0 ? 'red' : 'inherit' }}>
+                            {product.stock}
+                          </td>
+                          <td>{category?.name || 'Unknown'}</td>
+                          <td>
+                            <button
+                              onClick={() => handleEditProduct(product)}
+                              style={styles.editButton}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteProduct(product.id)}
+                              style={styles.deleteButton}
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         )}
@@ -420,7 +519,7 @@ function SellerDashboard() {
                   return (
                     <div key={order.id} style={styles.orderCard}>
                       <div style={styles.orderHeader}>
-                        <h3>Order #{order.id.substring(0, 8)}...</h3>
+                        <h3>Order #{order.order_number || order.id.substring(0, 8)}...</h3>
                         <span style={styles.orderStatus}>
                           {statusInfo.badge} {statusInfo.text}
                         </span>
@@ -677,4 +776,3 @@ const styles = {
 };
 
 export default SellerDashboard;
-

@@ -104,7 +104,7 @@ async def add_item_to_my_cart(
     """
     # Get user's cart
     cart_response = await CartService.get_my_cart(db, current_user)
-    cart_id = cart_response['data'].id
+    cart_id = cart_response['data']['id']
     
     return await CartService.add_item_to_cart(db, cart_id, item, current_user)
 

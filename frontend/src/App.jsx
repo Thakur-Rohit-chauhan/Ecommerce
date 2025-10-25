@@ -11,7 +11,6 @@ import ProductDetail from './pages/ProductDetail';
 import Profile from './pages/Profile';
 import Products from './pages/Products';
 import Cart from './pages/Cart';
-import Checkout from './pages/Checkout';
 import CheckoutNew from './pages/CheckoutNew';
 import Orders from './pages/Orders';
 import VendorLogin from './pages/VendorLogin';
@@ -107,21 +106,12 @@ function App() {
           }
         />
         
-        {/* Checkout Routes - New comprehensive checkout */}
+        {/* Checkout Route */}
         <Route
           path="/checkout"
           element={
             <ProtectedRoute>
               <CheckoutNew />
-            </ProtectedRoute>
-          }
-        />
-        {/* Legacy checkout route */}
-        <Route
-          path="/checkout-old"
-          element={
-            <ProtectedRoute>
-              <Checkout />
             </ProtectedRoute>
           }
         />

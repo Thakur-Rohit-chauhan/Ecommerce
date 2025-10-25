@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
 function Profile() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   // Modals
   const [editProfile, setEditProfile] = useState(false);
@@ -17,6 +19,11 @@ function Profile() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
+        if (!token) {
+          navigate('/login');
+          return;
+        }
+        
         const res = await fetch('http://127.0.0.1:8000/users/me', {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -33,12 +40,13 @@ function Profile() {
         });
       } catch (err) {
         alert(err.message);
+        navigate('/login');
       } finally {
         setLoading(false);
       }
     };
     fetchProfile();
-  }, [token]);
+  }, [token, navigate]);
 
   // Update profile
   const handleEditProfile = async () => {

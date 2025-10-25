@@ -45,6 +45,32 @@ async def get_all_products(
             detail=f"Internal server error: {str(e)}"
         )
 
+@router.get("/my-products", status_code=status.HTTP_200_OK)
+async def get_my_products(
+    page: int = Query(1, ge=1),
+    limit: int = Query(100, ge=1, le=100),
+    search: str = Query("", max_length=50),
+    current_user: User = Depends(require_seller_or_admin),
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Get current seller's products.
+    
+    - **page**: Page number (default: 1)
+    - **limit**: Items per page (default: 100, max: 100)
+    - **search**: Search term for title, description, or brand
+    """
+    try:
+        return await ProductService.get_products_by_seller(
+            db, current_user.id, page, limit, search
+        )
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}"
+        )
 @router.get("/{product_id}", status_code=status.HTTP_200_OK)
 async def get_product(
     product_id: str,
@@ -94,3 +120,5 @@ async def delete_product(
         raise
     except Exception as e:
         raise e
+
+

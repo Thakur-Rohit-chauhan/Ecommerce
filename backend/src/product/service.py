@@ -10,6 +10,7 @@ from fastapi import HTTPException, status
 from src.common.response import ResponseHandler
 from src.common.exceptions import NotFoundError, ValidationError
 from decimal import Decimal
+import uuid
 
 class ProductService:
     @staticmethod
@@ -83,6 +84,13 @@ class ProductService:
             # Format response
             formatted_products = []
             for item in paginated_products:
+                # Convert images JSON string back to list
+                import json
+                try:
+                    images = json.loads(item["product"].images) if isinstance(item["product"].images, str) else item["product"].images
+                except (json.JSONDecodeError, TypeError):
+                    images = []
+                
                 product_dict = {
                     "id": item["product"].id,
                     "title": item["product"].title,
@@ -93,7 +101,7 @@ class ProductService:
                     "stock": item["product"].stock,
                     "brand": item["product"].brand,
                     "thumbnail": item["product"].thumbnail,
-                    "images": item["product"].images,
+                    "images": images,
                     "category_id": item["product"].category_id,
                     "seller_id": item["product"].seller_id,
                     "created_at": item["product"].created_at,
@@ -155,6 +163,10 @@ class ProductService:
             product_dict = product.model_dump()
             # Add seller_id to track who created the product
             product_dict["seller_id"] = current_user.id
+            # Convert images list to JSON string for SQLite compatibility
+            if isinstance(product_dict.get("images"), list):
+                import json
+                product_dict["images"] = json.dumps(product_dict["images"])
             db_product = Product(**product_dict)
             db.add(db_product)
             await db.commit()
@@ -218,6 +230,25 @@ class ProductService:
                     detail="You can only delete products that you created. Only the product owner or admin can delete this product."
                 )
             
+            # First, delete all related cart items
+            from src.cart.models import CartItem
+            cart_items_query = select(CartItem).where(CartItem.product_id == product_id)
+            cart_items_result = await db.execute(cart_items_query)
+            cart_items = cart_items_result.scalars().all()
+            
+            for cart_item in cart_items:
+                await db.delete(cart_item)
+            
+            # Also delete all related order items
+            from src.orders.models import OrderItem
+            order_items_query = select(OrderItem).where(OrderItem.product_id == product_id)
+            order_items_result = await db.execute(order_items_query)
+            order_items = order_items_result.scalars().all()
+            
+            for order_item in order_items:
+                await db.delete(order_item)
+            
+            # Then delete the product
             await db.delete(db_product)
             await db.commit()
             return ResponseHandler.delete_success(db_product.title, db_product.id, db_product)
@@ -228,4 +259,92 @@ class ProductService:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error deleting product: {str(e)}"
+            )
+
+    @staticmethod
+    async def get_products_by_seller(
+        db: AsyncSession,
+        seller_id: uuid.UUID,
+        page: int = 1,
+        limit: int = 100,
+        search: str = ""
+    ) -> Dict[str, Any]:
+        """
+        Get products by seller ID.
+        """
+        try:
+            offset = (page - 1) * limit
+            
+            # Query products by seller_id
+            query = select(Product).where(Product.seller_id == seller_id)
+            
+            if search:
+                query = query.where(or_(
+                    Product.title.ilike(f"%{search}%"),
+                    Product.description.ilike(f"%{search}%"),
+                    Product.brand.ilike(f"%{search}%")
+                ))
+            
+            # Order by created_at (newest first)
+            query = query.order_by(desc(Product.created_at))
+            
+            # Execute query
+            result = await db.execute(query)
+            products = result.scalars().all()
+            
+            # Get total count for pagination
+            count_query = select(func.count()).select_from(Product).where(Product.seller_id == seller_id)
+            if search:
+                count_query = count_query.where(or_(
+                    Product.title.ilike(f"%{search}%"),
+                    Product.description.ilike(f"%{search}%"),
+                    Product.brand.ilike(f"%{search}%")
+                ))
+            total = await db.scalar(count_query)
+            
+            # Apply pagination
+            paginated_products = products[offset:offset + limit]
+            
+            # Format response
+            formatted_products = []
+            for product in paginated_products:
+                # Convert images JSON string back to list
+                import json
+                try:
+                    images = json.loads(product.images) if isinstance(product.images, str) else product.images
+                except (json.JSONDecodeError, TypeError):
+                    images = []
+                
+                product_dict = {
+                    "id": product.id,
+                    "title": product.title,
+                    "description": product.description,
+                    "price": float(product.price),
+                    "discount_percentage": product.discount_percentage,
+                    "rating": product.rating,
+                    "stock": product.stock,
+                    "brand": product.brand,
+                    "thumbnail": product.thumbnail,
+                    "images": images,
+                    "category_id": product.category_id,
+                    "seller_id": product.seller_id,
+                    "created_at": product.created_at.isoformat() if product.created_at else None,
+                    "updated_at": product.updated_at.isoformat() if product.updated_at else None
+                }
+                formatted_products.append(product_dict)
+            
+            return {
+                "message": f"Successfully retrieved seller's products for page {page}",
+                "data": formatted_products,
+                "metadata": {
+                    "page": page,
+                    "limit": limit,
+                    "total": total,
+                    "pages": (total + limit - 1) // limit if limit > 0 else 0
+                }
+            }
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error retrieving seller's products: {str(e)}"
             )

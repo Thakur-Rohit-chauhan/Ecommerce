@@ -29,7 +29,7 @@ const paymentService = {
   },
 
   /**
-   * Create payment
+   * Create payment intent
    * @param {Object} paymentData - Payment information
    *   - order_id: Order ID
    *   - amount: Payment amount
@@ -38,7 +38,7 @@ const paymentService = {
    * @returns {Promise}
    */
   createPayment: async (paymentData) => {
-    const response = await api.post('/payments/', paymentData);
+    const response = await api.post('/payments/intents', paymentData);
     return response.data;
   },
 

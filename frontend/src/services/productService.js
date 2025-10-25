@@ -26,6 +26,19 @@ const productService = {
   },
 
   /**
+   * Get seller's own products
+   * @param {Object} params - Query parameters
+   *   - page: Page number
+   *   - limit: Items per page
+   *   - search: Search term
+   * @returns {Promise}
+   */
+  getMyProducts: async (params = {}) => {
+    const response = await api.get('/products/my-products', { params });
+    return response.data;
+  },
+
+  /**
    * Get product by ID
    * @param {string} productId - Product ID
    * @returns {Promise}

@@ -37,7 +37,10 @@ class OrderService:
         current_user: User = None
     ) -> Dict[str, Any]:
         try:
-            query = select(Order)
+            # Import selectinload for eager loading relationships
+            from sqlalchemy.orm import selectinload
+            
+            query = select(Order).options(selectinload(Order.order_items))
             
             # Apply filters
             if status:
@@ -52,9 +55,21 @@ class OrderService:
                 query = query.where(Order.user_id == current_user.id)
             elif current_user.role == UserRole.SELLER:
                 # Sellers can only see orders for their products
-                # This would require a more complex query to join with products
-                # For now, we'll allow sellers to see all orders
-                pass
+                from src.product.models import Product
+                from src.orders.models import OrderItem
+                # Get seller's product IDs
+                product_query = select(Product.id).where(Product.seller_id == current_user.id)
+                product_result = await db.execute(product_query)
+                product_ids = [row[0] for row in product_result.all()]
+                
+                if product_ids:
+                    # Join with OrderItem and filter by product IDs
+                    query = query.join(OrderItem, Order.id == OrderItem.order_id).where(
+                        OrderItem.product_id.in_(product_ids)
+                    ).distinct()
+                else:
+                    # No products, return empty result
+                    query = query.where(False)
             
             query = query.order_by(desc(Order.created_at)).offset(skip).limit(limit)
             result = await db.execute(query)
@@ -70,6 +85,15 @@ class OrderService:
                 count_query = count_query.where(Order.user_id == user_id)
             if current_user.role == UserRole.NORMAL_USER:
                 count_query = count_query.where(Order.user_id == current_user.id)
+            elif current_user.role == UserRole.SELLER:
+                # Get product_ids variable from above
+                if 'product_ids' in locals() and product_ids:
+                    from src.orders.models import OrderItem
+                    count_query = count_query.join(OrderItem, Order.id == OrderItem.order_id).where(
+                        OrderItem.product_id.in_(product_ids)
+                    ).distinct()
+                else:
+                    count_query = count_query.where(False)
             
             total = await db.scalar(count_query)
             
