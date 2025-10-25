@@ -24,7 +24,7 @@ class CartItemResponse(CartItemBase):
     subtotal_price: Decimal
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class CartBase(BaseModel):
     total_price: Decimal = Field(default=Decimal('0.00'), decimal_places=2)
@@ -42,7 +42,7 @@ class CartResponse(CartBase):
     cart_items: List[CartItemResponse]
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # Checkout Schema
 class CartCheckout(BaseModel):

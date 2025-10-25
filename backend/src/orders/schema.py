@@ -21,7 +21,7 @@ class OrderItemResponse(OrderItemBase):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class OrderBase(BaseModel):
     shipping_address: str = Field(..., max_length=500)
@@ -57,7 +57,7 @@ class OrderResponse(OrderBase):
     order_items: List[OrderItemResponse]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class OrderListResponse(BaseModel):
     message: str
@@ -65,7 +65,7 @@ class OrderListResponse(BaseModel):
     metadata: dict
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class OrderSummary(BaseModel):
     id: uuid.UUID
@@ -77,4 +77,4 @@ class OrderSummary(BaseModel):
     item_count: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True

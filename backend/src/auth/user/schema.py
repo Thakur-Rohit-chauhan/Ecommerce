@@ -51,7 +51,7 @@ class UserResponse(UserBase):
     last_login: Optional[datetime]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class UserLogin(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
@@ -73,7 +73,7 @@ class UserListResponse(BaseModel):
     metadata: dict
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class EmailVerificationRequest(BaseModel):
     token: str = Field(..., min_length=1)

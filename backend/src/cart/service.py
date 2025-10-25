@@ -9,6 +9,7 @@ from typing import List, Optional
 from fastapi import HTTPException, status
 from src.common.response import ResponseHandler
 from src.common.exceptions import NotFoundError
+from decimal import Decimal
 import uuid
 
 class CartService:

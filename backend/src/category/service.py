@@ -66,7 +66,7 @@ class CategoryService:
         if existing_category:
             raise ConflictError(f"Category with name '{category.name}' already exists")
         
-        db_category = Category(**category.dict())
+        db_category = Category(**category.model_dump())
         db.add(db_category)
         await db.commit()
         await db.refresh(db_category)
@@ -96,7 +96,7 @@ class CategoryService:
                 raise ConflictError(f"Category with name '{category_update.name}' already exists")
         
         # Update fields
-        for key, value in category_update.dict(exclude_unset=True).items():
+        for key, value in category_update.model_dump(exclude_unset=True).items():
             setattr(db_category, key, value)
         
         db_category.updated_at = datetime.utcnow()
