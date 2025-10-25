@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { productService, categoryService } from '../services';
 
 function Products() {
   const location = useLocation();
@@ -21,9 +22,7 @@ function Products() {
   const fetchData = async () => {
     try {
       // Fetch categories
-      const catRes = await fetch('http://localhost:8000/categories');
-      if (!catRes.ok) throw new Error('Failed to fetch categories');
-      const catResult = await catRes.json();
+      const catResult = await categoryService.getAllCategories();
       const catList = catResult.data || [];
       const map = {};
       catList.forEach(c => (map[c.id] = c.name));
@@ -31,9 +30,7 @@ function Products() {
       setCategories(['All', ...catList.map(c => c.name)]);
 
       // Fetch products
-      const prodRes = await fetch('http://localhost:8000/products/');
-      if (!prodRes.ok) throw new Error('Invalid response from server');
-      const prodData = await prodRes.json();
+      const prodData = await productService.getAllProducts();
       setProducts(Array.isArray(prodData.data) ? prodData.data : []);
       setLoading(false);
     } catch (err) {

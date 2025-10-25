@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { useNavigate } from "react-router-dom";
-import api from "../Api/api";
+import { cartService, authService } from "../services";
 
 function Cart() {
   const navigate = useNavigate();
@@ -19,23 +19,20 @@ function Cart() {
   const fetchCart = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("authToken");
-      if (!token) {
+      if (!authService.isAuthenticated()) {
         navigate("/login");
         return;
       }
 
-      // Use the simplified endpoint - just get MY cart
-      const response = await api.get("/carts/me");
-      const cartData = response.data?.data || response.data;
+      const response = await cartService.getMyCart();
+      const cartData = response.data;
 
-      console.log("Cart data from backend:", cartData);
       setCart(cartData);
       setCartItems(cartData.cart_items || []);
     } catch (err) {
       console.error("Error fetching cart:", err);
       if (err.response?.status === 401) {
-        localStorage.removeItem("authToken");
+        authService.logout();
         navigate("/login");
       } else {
         setError("Failed to load cart.");
@@ -52,11 +49,10 @@ function Cart() {
       if (!item) return;
 
       const newQuantity = Math.max(1, item.quantity + delta);
-      await api.put(`/carts/${cart.id}/items/${itemId}`, { quantity: newQuantity });
+      await cartService.updateCartItem(cart.id, itemId, { quantity: newQuantity });
 
-      setCartItems((prev) =>
-        prev.map((i) => (i.id === itemId ? { ...i, quantity: newQuantity } : i))
-      );
+      // Refresh cart to get updated totals
+      await fetchCart();
     } catch (err) {
       console.error("Error updating quantity:", err);
       alert("Failed to update quantity.");
@@ -66,8 +62,10 @@ function Cart() {
   // Remove item
   const handleRemove = async (itemId) => {
     try {
-      await api.delete(`/carts/${cart.id}/items/${itemId}`);
+      await cartService.removeCartItem(cart.id, itemId);
       setCartItems((prev) => prev.filter((i) => i.id !== itemId));
+      // Refresh cart to get updated totals
+      await fetchCart();
     } catch (err) {
       console.error("Error removing item:", err);
       alert("Failed to remove item.");

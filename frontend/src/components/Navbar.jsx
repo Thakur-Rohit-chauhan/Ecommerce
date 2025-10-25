@@ -1,19 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { authService } from '../services';
 
 function Navbar() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(null);
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    setIsAuthenticated(!!token);
+    const checkAuth = () => {
+      const authenticated = authService.isAuthenticated();
+      setIsAuthenticated(authenticated);
+      if (authenticated) {
+        setUser(authService.getCurrentUser());
+      }
+    };
+    checkAuth();
+    
+    // Listen for storage changes (e.g., login in another tab)
+    window.addEventListener('storage', checkAuth);
+    return () => window.removeEventListener('storage', checkAuth);
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('authToken');
+    authService.logout();
     setIsAuthenticated(false);
+    setUser(null);
     navigate('/login');
   };
 
@@ -46,22 +59,45 @@ function Navbar() {
         <button type="submit" style={styles.searchButton}>Search</button>
       </form>
 
-      <div>
+      <div style={styles.navLinks}>
         <Link style={styles.link} to="/">Home</Link>
-        <Link style={styles.link} to="/Vendorlogin">Vendor</Link>
-        
+        <Link style={styles.link} to="/products">Products</Link>
 
         {!isAuthenticated ? (
           <>
-            <Link style={styles.link} to="/login">Buyer</Link>
-            
+            <Link style={styles.link} to="/login">Login</Link>
+            <Link style={styles.link} to="/signup">Sign Up</Link>
           </>
         ) : (
           <>
-            <Link style={styles.link} to="/profile">Profile</Link>
-            <Link style={styles.link} to="/orders">Orders</Link>
-            <Link style={styles.link} to="/cart">Cart</Link>
-            <button style={styles.logoutButton} onClick={handleLogout}>Logout</button>
+            {/* Role-based navigation */}
+            {user && (
+              <>
+                {authService.isAdmin() && (
+                  <Link style={styles.dashboardLink} to="/admin/dashboard">
+                    🛠️ Admin Dashboard
+                  </Link>
+                )}
+                
+                {authService.isSeller() && !authService.isAdmin() && (
+                  <Link style={styles.dashboardLink} to="/seller/dashboard">
+                    📊 Seller Dashboard
+                  </Link>
+                )}
+                
+                {authService.hasRole('normal_user') && (
+                  <>
+                    <Link style={styles.link} to="/cart">🛒 Cart</Link>
+                    <Link style={styles.link} to="/orders">📦 Orders</Link>
+                  </>
+                )}
+                
+                <Link style={styles.link} to="/profile">👤 {user.username}</Link>
+                <button style={styles.logoutButton} onClick={handleLogout}>
+                  Logout
+                </button>
+              </>
+            )}
           </>
         )}
       </div>
@@ -78,43 +114,72 @@ const styles = {
     backgroundColor: 'rgba(24, 44, 126, 1)',
     color: 'white',
     flexWrap: 'wrap',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
   },
-  logo: { margin: 0 },
+  logo: { 
+    margin: 0,
+    cursor: 'pointer',
+  },
+  navLinks: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+  },
   link: {
-    marginLeft: '1rem',
+    marginLeft: '0.5rem',
     color: 'white',
     textDecoration: 'none',
     fontWeight: 'bold',
+    padding: '0.5rem 1rem',
+    borderRadius: '4px',
+    transition: 'background-color 0.2s',
+  },
+  dashboardLink: {
+    marginLeft: '0.5rem',
+    color: 'white',
+    textDecoration: 'none',
+    fontWeight: 'bold',
+    padding: '0.5rem 1rem',
+    borderRadius: '4px',
+    backgroundColor: '#ffcc00',
+    color: '#333',
+    transition: 'background-color 0.2s',
   },
   logoutButton: {
     marginLeft: '1rem',
-    padding: '0.3rem 0.7rem',
+    padding: '0.5rem 1rem',
     fontWeight: 'bold',
     cursor: 'pointer',
     borderRadius: '4px',
     border: 'none',
     backgroundColor: '#ff4d4d',
     color: 'white',
+    transition: 'background-color 0.2s',
   },
   searchForm: {
     display: 'flex',
     flex: 1,
     marginLeft: '2rem',
     marginRight: '2rem',
+    maxWidth: '500px',
   },
   searchInput: {
     flex: 1,
-    padding: '0.4rem 0.6rem',
+    padding: '0.5rem 1rem',
     borderRadius: '4px 0 0 4px',
     border: 'none',
     outline: 'none',
+    fontSize: '1rem',
   },
   searchButton: {
-    padding: '0.4rem 0.8rem',
+    padding: '0.5rem 1.5rem',
     border: 'none',
     borderRadius: '0 4px 4px 0',
     backgroundColor: '#ffcc00',
     cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '1rem',
+    transition: 'background-color 0.2s',
   },
 };
 

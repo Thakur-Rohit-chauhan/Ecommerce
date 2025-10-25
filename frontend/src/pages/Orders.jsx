@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import api from '../Api/api';
+import { orderService } from '../services';
 
 function Orders() {
   const [orders, setOrders] = useState([]);
@@ -15,8 +15,8 @@ function Orders() {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/orders/my-orders');
-      setOrders(response.data.data || []);
+      const response = await orderService.getAllOrders();
+      setOrders(response.data || []);
     } catch (err) {
       console.error('Error fetching orders:', err);
       setError('Failed to load orders');
@@ -61,8 +61,8 @@ function Orders() {
         ) : (
           orders.map((order) => (
             <div key={order.id} style={styles.orderCard}>
-              <h3>Order #{order.id} - {order.status}</h3>
-              <p>Date: {new Date(order.created_at).toLocaleDateString()}</p>
+              <h3>Order #{order.id.substring(0, 8)}... - <span style={styles.status}>{orderService.formatStatus(order.status).badge} {orderService.formatStatus(order.status).text}</span></h3>
+              <p>Date: {orderService.formatOrderDate(order.created_at)}</p>
               <p>Payment Status: {order.payment_status}</p>
               <p>Shipping Address: {order.shipping_address}</p>
               <ul>
@@ -89,6 +89,9 @@ const styles = {
     padding: '1rem',
     marginBottom: '1rem',
     backgroundColor: '#f9f9f9',
+  },
+  status: {
+    fontWeight: 'bold',
   },
 };
 

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import api from '../Api/api';
+import { authService } from '../services';
 
 function Signup() {
   const [username, setUsername] = useState('');
@@ -22,7 +22,7 @@ function Signup() {
     setError('');
 
     try {
-      await api.post('/auth/register', {
+      await authService.register({
         username,
         full_name: name,
         email,

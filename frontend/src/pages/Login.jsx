@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import api from '../Api/api';
+import { authService } from '../services';
 
 function Login() {
   const [username, setUsername] = useState('');
@@ -19,15 +19,7 @@ function Login() {
     setVerificationError(false);
 
     try {
-      const response = await api.post('/auth/login', {
-        username,
-        password,
-      });
-
-      // Save token to localStorage
-      localStorage.setItem('authToken', response.data.access_token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-
+      await authService.login({ username, password });
       navigate('/profile');
     } catch (err) {
       if (err.response?.status === 403) {

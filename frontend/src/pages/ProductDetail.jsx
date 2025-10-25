@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { productService, cartService, authService } from '../services';
 
 function ProductDetail() {
   const navigate = useNavigate();
@@ -14,9 +15,7 @@ function ProductDetail() {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const response = await fetch(`http://localhost:8000/products/${id}`);
-        if (!response.ok) throw new Error('Failed to load product');
-        const result = await response.json();
+        const result = await productService.getProductById(id);
         setProduct(result.data);
       } catch (err) {
         console.error('Error fetching product:', err);
@@ -28,51 +27,28 @@ function ProductDetail() {
     fetchProduct();
   }, [id]);
 
-  // No longer needed - user cart is auto-created on signup and accessed via /carts/me
-
   const handleAddToCart = async () => {
-    const token = localStorage.getItem('authToken');
-
-    if (!token) {
+    if (!authService.isAuthenticated()) {
       alert('Please log in to add items to cart');
       navigate('/login');
       return;
     }
 
     try {
-      console.log('Adding product to cart:', product.id);
-
-      // Use the simplified endpoint - no cart ID needed!
-      const response = await fetch('http://localhost:8000/carts/me/items', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          product_id: product.id,
-          quantity: 1,
-        }),
+      await cartService.addItemToMyCart({
+        product_id: product.id,
+        quantity: 1,
       });
-
-      const result = await response.json();
-      console.log('Response:', result);
-
-      if (!response.ok) {
-        // Check if it's an authentication error
-        if (response.status === 401) {
-          alert('Your session has expired. Please log in again.');
-          localStorage.removeItem('authToken');
-          navigate('/login');
-          return;
-        }
-        throw new Error(result.detail || result.message || 'Failed to add item to cart');
-      }
-      
       alert('✅ Product added to cart!');
     } catch (error) {
       console.error('Error adding to cart:', error);
-      alert('❌ Failed to add to cart. Please try again.');
+      if (error.response?.status === 401) {
+        alert('Your session has expired. Please log in again.');
+        authService.logout();
+        navigate('/login');
+      } else {
+        alert('❌ Failed to add to cart. Please try again.');
+      }
     }
   };
 

@@ -1,4 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { authService } from './services';
+
+// Pages
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
@@ -9,19 +12,45 @@ import Profile from './pages/Profile';
 import Products from './pages/Products';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
+import CheckoutNew from './pages/CheckoutNew';
 import Orders from './pages/Orders';
 import VendorLogin from './pages/VendorLogin';
 import VendorSignup from './pages/VendorSignup';
 import VendorProfile from './pages/VendorProfile';
-// ProtectedRoute component
+import SellerDashboard from './pages/SellerDashboard';
+import AdminDashboard from './pages/AdminDashboard';
+
+// ProtectedRoute component - requires authentication
 function ProtectedRoute({ children }) {
-  const token = localStorage.getItem('authToken');
-  if (!token) {
-    // Redirect to login if not authenticated
+  if (!authService.isAuthenticated()) {
     return <Navigate to="/login" replace />;
   }
   return children;
 }
+
+// SellerRoute - requires seller or admin role
+function SellerRoute({ children }) {
+  if (!authService.isAuthenticated()) {
+    return <Navigate to="/login" replace />;
+  }
+  if (!authService.isSeller() && !authService.isAdmin()) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+}
+
+// AdminRoute - requires admin role
+function AdminRoute({ children }) {
+  if (!authService.isAuthenticated()) {
+    return <Navigate to="/login" replace />;
+  }
+  if (!authService.isAdmin()) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+}
+
+// Legacy vendor protected (keeping for backward compatibility)
 function VendorProtected({ children }) {
   const token = localStorage.getItem('vendorToken');
   return token ? children : <Navigate to="/Vendorlogin" replace />;
@@ -31,17 +60,28 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* Public Routes */}
+        {/* ========== Public Routes ========== */}
         <Route path="/" element={<Home />} />
         <Route path="/products" element={<Products />} />
+        <Route path="/products/:id" element={<ProductDetail />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/resend-verification" element={<ResendVerification />} />
-        <Route path="/products/:id" element={<ProductDetail />} />
+        
+        {/* Legacy Vendor Routes (backward compatibility) */}
         <Route path="/Vendorlogin" element={<VendorLogin />} />
         <Route path="/Vendorsignup" element={<VendorSignup />} />
-        {/* Protected Routes */}
+        <Route
+          path="/Vendorprofile"
+          element={
+            <VendorProtected>
+              <VendorProfile />
+            </VendorProtected>
+          }
+        />
+
+        {/* ========== Protected User Routes ========== */}
         <Route
           path="/profile"
           element={
@@ -59,29 +99,55 @@ function App() {
           }
         />
         <Route
-          path="/Orders"
+          path="/orders"
           element={
             <ProtectedRoute>
               <Orders />
             </ProtectedRoute>
           }
         />
+        
+        {/* Checkout Routes - New comprehensive checkout */}
         <Route
           path="/checkout"
+          element={
+            <ProtectedRoute>
+              <CheckoutNew />
+            </ProtectedRoute>
+          }
+        />
+        {/* Legacy checkout route */}
+        <Route
+          path="/checkout-old"
           element={
             <ProtectedRoute>
               <Checkout />
             </ProtectedRoute>
           }
         />
+
+        {/* ========== Seller Routes ========== */}
         <Route
-  path="/Vendorprofile"
-  element={
-    <VendorProtected>
-      <VendorProfile />
-    </VendorProtected>
-  }
-/>
+          path="/seller/dashboard"
+          element={
+            <SellerRoute>
+              <SellerDashboard />
+            </SellerRoute>
+          }
+        />
+
+        {/* ========== Admin Routes ========== */}
+        <Route
+          path="/admin/dashboard"
+          element={
+            <AdminRoute>
+              <AdminDashboard />
+            </AdminRoute>
+          }
+        />
+
+        {/* ========== Fallback ========== */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );
