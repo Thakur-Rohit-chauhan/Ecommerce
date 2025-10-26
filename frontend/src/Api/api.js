@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // Replace with your backend URL
-const BASE_URL = "http://127.0.0.1:8000";
+const BASE_URL = "http://localhost:8000";
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -15,12 +15,43 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("authToken");
+    console.log('API Request Interceptor:', {
+      url: config.url,
+      method: config.method,
+      hasToken: !!token,
+      tokenLength: token?.length
+    });
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('Token added to request:', token.substring(0, 20) + '...');
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    console.error('API Request Error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor for error handling
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error('API Response Error:', {
+      status: error.response?.status,
+      data: error.response?.data,
+      url: error.config?.url
+    });
+    
+    // If 401, clear token and redirect to login
+    if (error.response?.status === 401) {
+      console.log('401 Unauthorized - Clearing token');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
+    }
+    
+    return Promise.reject(error);
+  }
 );
 
 // Vendor/Seller API functions

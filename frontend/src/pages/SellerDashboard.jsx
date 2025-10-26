@@ -270,7 +270,7 @@ function SellerDashboard() {
             </div>
             <div style={styles.statCard}>
               <h3>Revenue</h3>
-              <p style={styles.statValue}>₹{stats.total_revenue?.toFixed(2) || '0.00'}</p>
+              <p style={styles.statValue}>₹{(typeof stats.total_revenue === 'number' || typeof stats.total_revenue === 'string') ? parseFloat(stats.total_revenue).toFixed(2) : '0.00'}</p>
             </div>
             <div style={styles.statCard}>
               <h3>Pending Orders</h3>
@@ -301,6 +301,12 @@ function SellerDashboard() {
           >
             Orders
           </button>
+          <button
+            style={styles.tab}
+            onClick={() => navigate('/dashboard/invoices')}
+          >
+            Invoices
+          </button>
         </div>
 
         {/* Tab Content */}
@@ -312,7 +318,7 @@ function SellerDashboard() {
             {stats && (
               <div style={styles.overviewSection}>
                 <h3>Recent Activity</h3>
-                <p>Total Sales: ₹{stats.total_revenue?.toFixed(2) || '0.00'}</p>
+                <p>Total Sales: ₹{(typeof stats.total_revenue === 'number' || typeof stats.total_revenue === 'string') ? parseFloat(stats.total_revenue).toFixed(2) : '0.00'}</p>
                 <p>Active Products: {products.filter(p => p.stock > 0).length}</p>
                 <p>Out of Stock: {products.filter(p => p.stock === 0).length}</p>
               </div>
@@ -612,6 +618,7 @@ const styles = {
     borderBottom: '2px solid transparent',
     cursor: 'pointer',
     fontWeight: '500',
+    color: '#666', // Dark gray color for inactive tabs
   },
   tabActive: {
     padding: '0.75rem 1.5rem',

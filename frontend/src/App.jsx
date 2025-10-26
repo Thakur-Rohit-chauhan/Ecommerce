@@ -18,6 +18,9 @@ import VendorSignup from './pages/VendorSignup';
 import VendorProfile from './pages/VendorProfile';
 import SellerDashboard from './pages/SellerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import InvoiceManagement from './pages/InvoiceManagement';
+import InvoiceDetail from './pages/InvoiceDetail';
+import CreateInvoice from './pages/CreateInvoice';
 
 // ProtectedRoute component - requires authentication
 function ProtectedRoute({ children }) {
@@ -122,6 +125,32 @@ function App() {
           element={
             <SellerRoute>
               <SellerDashboard />
+            </SellerRoute>
+          }
+        />
+
+        {/* ========== Invoice Routes ========== */}
+        <Route
+          path="/dashboard/invoices"
+          element={
+            <SellerRoute>
+              <InvoiceManagement />
+            </SellerRoute>
+          }
+        />
+        <Route
+          path="/dashboard/invoices/create"
+          element={
+            <SellerRoute>
+              <CreateInvoice />
+            </SellerRoute>
+          }
+        />
+        <Route
+          path="/dashboard/invoices/:invoiceId"
+          element={
+            <SellerRoute>
+              <InvoiceDetail />
             </SellerRoute>
           }
         />

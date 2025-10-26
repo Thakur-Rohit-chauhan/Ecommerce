@@ -58,14 +58,25 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             return response
         except Exception as e:
             logger.error(f"Unhandled error: {str(e)}", exc_info=True)
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             
-            return JSONResponse(
+            # Create error response with CORS headers
+            error_response = JSONResponse(
                 status_code=500,
                 content={
                     "detail": "Internal server error",
-                    "error": "An unexpected error occurred"
+                    "error": str(e)
                 }
             )
+            
+            # Add CORS headers manually
+            error_response.headers["Access-Control-Allow-Origin"] = request.headers.get("Origin", "*")
+            error_response.headers["Access-Control-Allow-Credentials"] = "true"
+            error_response.headers["Access-Control-Allow-Methods"] = "*"
+            error_response.headers["Access-Control-Allow-Headers"] = "*"
+            
+            return error_response
 
 def setup_middleware(app: FastAPI):
     """Setup all middleware for the FastAPI application."""
@@ -76,8 +87,10 @@ def setup_middleware(app: FastAPI):
         allow_origins=[
             "http://localhost:3000", 
             "http://localhost:5173",
+            "http://localhost:5174",  # Added port 5174
             "http://127.0.0.1:3000", 
-            "http://127.0.0.1:5173"
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:5174"   # Added port 5174
         ],  # Add your frontend URLs
         allow_credentials=True,
         allow_methods=["*"],

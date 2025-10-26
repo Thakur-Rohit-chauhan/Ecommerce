@@ -18,12 +18,19 @@ function Login() {
     setError('');
     setVerificationError(false);
 
+    console.log('Login.jsx - Attempting login with:', {
+      username,
+      passwordLength: password.length
+    });
+
     try {
-      await authService.login({ username, password });
+      const response = await authService.login({ username, password });
+      console.log('Login.jsx - Login successful:', response);
       setLoading(false);
       navigate('/profile');
     } catch (err) {
-      console.error('Login error:', err);
+      console.error('Login.jsx - Login error:', err);
+      console.error('Login.jsx - Error details:', err.response?.data);
       if (err.response?.status === 403) {
         // Email not verified
         setVerificationError(true);

@@ -300,7 +300,7 @@ class InvoiceService:
         """Create an invoice from an order"""
         try:
             # Get order with items and user
-            order_query = select(Order).where(Order.id == order_id)
+            order_query = select(Order).options(selectinload(Order.user), selectinload(Order.order_items)).where(Order.id == order_id)
             order_result = await db.execute(order_query)
             order = order_result.scalar_one_or_none()
             

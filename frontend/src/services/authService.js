@@ -43,7 +43,7 @@ const authService = {
    * @returns {Promise}
    */
   register: async (userData) => {
-    const response = await api.post('/users/', userData);
+    const response = await api.post('/auth/register', userData);
     return response.data;
   },
 
@@ -53,7 +53,7 @@ const authService = {
    * @returns {Promise}
    */
   verifyEmail: async (token) => {
-    const response = await api.post('/users/verify-email', { token });
+    const response = await api.post('/auth/verify-email', { token });
     return response.data;
   },
 
@@ -63,7 +63,7 @@ const authService = {
    * @returns {Promise}
    */
   resendVerification: async (email) => {
-    const response = await api.post('/users/resend-verification', { email });
+    const response = await api.post('/auth/resend-verification', { email });
     return response.data;
   },
 

@@ -14,7 +14,7 @@ import uuid
 
 router = APIRouter()
 
-@router.get("/", response_model=OrderListResponse)
+@router.get("/")
 async def get_all_orders(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
@@ -33,7 +33,7 @@ async def get_all_orders(
     except Exception as e:
         raise e
 
-@router.get("/my-orders", response_model=OrderListResponse)
+@router.get("/my-orders")
 async def get_my_orders(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
@@ -53,7 +53,7 @@ async def get_my_orders(
     except Exception as e:
         raise e
 
-@router.get("/user/{user_id}", response_model=OrderListResponse)
+@router.get("/user/{user_id}")
 async def get_user_orders(
     user_id: uuid.UUID = Path(..., description="The UUID of the user"),
     skip: int = Query(0, ge=0),
@@ -69,7 +69,7 @@ async def get_user_orders(
     except Exception as e:
         raise e
 
-@router.get("/{order_id}", response_model=OrderResponse)
+@router.get("/{order_id}")
 async def get_order(
     order_id: uuid.UUID = Path(..., description="The UUID of the order"),
     current_user: User = Depends(get_current_active_user),
@@ -86,7 +86,7 @@ async def get_order(
     except Exception as e:
         raise e
 
-@router.post("/", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_order(
     order: OrderCreate,
     current_user: User = Depends(get_current_active_user),
@@ -102,7 +102,7 @@ async def create_order(
     except Exception as e:
         raise e
 
-@router.put("/{order_id}", response_model=OrderResponse)
+@router.put("/{order_id}")
 async def update_order(
     order_id: uuid.UUID = Path(..., description="The UUID of the order"),
     order_update: OrderUpdate = None,
@@ -120,7 +120,7 @@ async def update_order(
     except Exception as e:
         raise e
 
-@router.post("/{order_id}/cancel", response_model=OrderResponse)
+@router.post("/{order_id}/cancel")
 async def cancel_order(
     order_id: uuid.UUID = Path(..., description="The UUID of the order"),
     current_user: User = Depends(get_current_active_user),
@@ -137,7 +137,7 @@ async def cancel_order(
     except Exception as e:
         raise e
 
-@router.put("/{order_id}/status", response_model=OrderResponse)
+@router.put("/{order_id}/status")
 async def update_order_status(
     order_id: uuid.UUID = Path(..., description="The UUID of the order"),
     status: OrderStatus = Query(..., description="New order status"),
@@ -155,7 +155,7 @@ async def update_order_status(
     except Exception as e:
         raise e
 
-@router.put("/{order_id}/payment-status", response_model=OrderResponse)
+@router.put("/{order_id}/payment-status")
 async def update_payment_status(
     order_id: uuid.UUID = Path(..., description="The UUID of the order"),
     payment_status: PaymentStatus = Query(..., description="New payment status"),

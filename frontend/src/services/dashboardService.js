@@ -70,7 +70,7 @@ const dashboardService = {
    * @returns {Promise}
    */
   getAllInvoices: async (params = {}) => {
-    const response = await api.get('/invoices/', { params });
+    const response = await api.get('/dashboard/invoices', { params });
     return response.data;
   },
 
@@ -80,17 +80,28 @@ const dashboardService = {
    * @returns {Promise}
    */
   getInvoiceById: async (invoiceId) => {
-    const response = await api.get(`/invoices/${invoiceId}`);
+    const response = await api.get(`/dashboard/invoices/${invoiceId}`);
     return response.data;
   },
 
   /**
    * Create invoice from order
-   * @param {Object} invoiceData - { order_id }
+   * @param {Object} invoiceData - { order_id, due_days }
    * @returns {Promise}
    */
   createInvoice: async (invoiceData) => {
-    const response = await api.post('/invoices/', invoiceData);
+    const response = await api.post('/dashboard/invoices', invoiceData);
+    return response.data;
+  },
+
+  /**
+   * Update invoice status
+   * @param {string} invoiceId - Invoice ID
+   * @param {string} status - New status
+   * @returns {Promise}
+   */
+  updateInvoiceStatus: async (invoiceId, status) => {
+    const response = await api.put(`/dashboard/invoices/${invoiceId}/status?status=${status}`);
     return response.data;
   },
 
@@ -100,19 +111,9 @@ const dashboardService = {
    * @returns {Promise} - Blob response
    */
   downloadInvoicePDF: async (invoiceId) => {
-    const response = await api.get(`/invoices/${invoiceId}/download`, {
+    const response = await api.get(`/dashboard/invoices/${invoiceId}/pdf`, {
       responseType: 'blob'
     });
-    return response.data;
-  },
-
-  /**
-   * Send invoice via email
-   * @param {string} invoiceId - Invoice ID
-   * @returns {Promise}
-   */
-  sendInvoiceEmail: async (invoiceId) => {
-    const response = await api.post(`/invoices/${invoiceId}/send-email`);
     return response.data;
   },
 

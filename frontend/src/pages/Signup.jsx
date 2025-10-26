@@ -11,6 +11,7 @@ function Signup() {
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
+  const [role, setRole] = useState('user'); // 'user' or 'seller'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -29,12 +30,17 @@ function Signup() {
         password,
         phone_number: phone || null,
         address: address || null,
+        role: role, // Include role in registration
       });
       
       setSuccess(true);
-      // Redirect to login after 5 seconds
+      // Redirect based on role
       setTimeout(() => {
-        navigate('/login');
+        if (role === 'seller') {
+          navigate('/vendor-login');
+        } else {
+          navigate('/login');
+        }
       }, 5000);
     } catch (err) {
       setError(err.response?.data?.detail || 'Signup failed. Please try again.');
@@ -124,6 +130,15 @@ function Signup() {
                 style={styles.input}
                 disabled={loading}
               />
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                style={styles.input}
+                disabled={loading}
+              >
+                <option value="user">Customer</option>
+                <option value="seller">Seller</option>
+              </select>
               <textarea
                 placeholder="Address (optional)"
                 value={address}

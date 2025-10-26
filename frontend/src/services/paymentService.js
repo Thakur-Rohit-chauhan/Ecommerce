@@ -9,12 +9,62 @@ const paymentService = {
   // ============= Payment Operations =============
 
   /**
-   * Get all payments (admin only)
-   * @param {Object} params - Query parameters { page, limit }
+   * Get all payments (user's own payments)
+   * @param {Object} params - Query parameters { page, limit, status }
    * @returns {Promise}
    */
   getAllPayments: async (params = {}) => {
     const response = await api.get('/payments/', { params });
+    return response.data;
+  },
+
+  /**
+   * Get user's payment methods
+   * @returns {Promise}
+   */
+  getUserPaymentMethods: async () => {
+    const response = await api.get('/payments/methods/');
+    return response.data;
+  },
+
+  /**
+   * Create a payment method
+   * @param {Object} methodData - Payment method data
+   * @returns {Promise}
+   */
+  createPaymentMethod: async (methodData) => {
+    const response = await api.post('/payments/methods', methodData);
+    return response.data;
+  },
+
+  /**
+   * Update a payment method
+   * @param {string} methodId - Payment method ID
+   * @param {Object} methodData - Update data
+   * @returns {Promise}
+   */
+  updatePaymentMethod: async (methodId, methodData) => {
+    const response = await api.put(`/payments/methods/${methodId}`, methodData);
+    return response.data;
+  },
+
+  /**
+   * Delete a payment method
+   * @param {string} methodId - Payment method ID
+   * @returns {Promise}
+   */
+  deletePaymentMethod: async (methodId) => {
+    const response = await api.delete(`/payments/methods/${methodId}`);
+    return response.data;
+  },
+
+  /**
+   * Create a refund
+   * @param {Object} refundData - { payment_id, amount, reason }
+   * @returns {Promise}
+   */
+  createRefund: async (refundData) => {
+    const response = await api.post('/payments/refunds', refundData);
     return response.data;
   },
 
@@ -31,11 +81,34 @@ const paymentService = {
   /**
    * Create payment intent
    * @param {Object} paymentData - Payment information
-   *   - order_id: Order ID
-   *   - amount: Payment amount
-   *   - payment_method: Payment method (stripe, paypal, manual)
-   *   - payment_details: Additional payment details
+   *   - order_id: Order ID (UUID string)
+   *   - amount: Payment amount (Decimal)
+   *   - currency: Currency code (default: INR)
+   *   - payment_method: Payment method enum
+   *   - payment_provider: Payment provider enum
+   *   - customer_email: Customer email (optional)
+   *   - metadata: Additional metadata (optional)
    * @returns {Promise}
+   */
+  createPaymentIntent: async (paymentData) => {
+    const response = await api.post('/payments/intents', paymentData);
+    return response.data;
+  },
+
+  /**
+   * Confirm payment
+   * @param {Object} paymentData - Payment confirmation data
+   *   - payment_intent_id: Payment intent ID
+   *   - payment_method_id: Payment method ID (for card payments)
+   * @returns {Promise}
+   */
+  confirmPayment: async (paymentData) => {
+    const response = await api.post('/payments/confirm', paymentData);
+    return response.data;
+  },
+
+  /**
+   * Legacy create payment method (kept for backward compatibility)
    */
   createPayment: async (paymentData) => {
     const response = await api.post('/payments/intents', paymentData);

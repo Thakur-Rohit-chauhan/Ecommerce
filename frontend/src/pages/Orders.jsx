@@ -16,6 +16,8 @@ function Orders() {
     try {
       setLoading(true);
       const response = await orderService.getMyOrders();
+      console.log('Orders API response:', response);
+      console.log('Orders data:', response.data);
       setOrders(response.data || []);
     } catch (err) {
       console.error('Error fetching orders:', err);
@@ -66,7 +68,7 @@ function Orders() {
               <p>Payment Status: {order.payment_status}</p>
               <p>Shipping Address: {order.shipping_address}</p>
               <ul>
-                {order.order_items.map((item, idx) => (
+                {(order.order_items || []).map((item, idx) => (
                   <li key={idx}>
                     {item.product_name} x {item.quantity} - ₹{item.subtotal}
                   </li>

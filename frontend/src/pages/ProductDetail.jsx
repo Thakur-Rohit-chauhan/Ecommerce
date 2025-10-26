@@ -16,7 +16,52 @@ function ProductDetail() {
     const fetchProduct = async () => {
       try {
         const result = await productService.getProductById(id);
-        setProduct(result.data);
+        console.log('Product fetched:', result.data);
+        console.log('Images:', result.data.images);
+        console.log('Images type:', typeof result.data.images);
+        console.log('Thumbnail:', result.data.thumbnail);
+        
+        // Handle images array - it might be a stringified JSON or already an array
+        let parsedProduct = { ...result.data };
+        
+        if (Array.isArray(parsedProduct.images)) {
+          // If it's already an array, check if it's been split into characters
+          if (parsedProduct.images.length > 0 && typeof parsedProduct.images[0] === 'string' && parsedProduct.images[0].length === 1) {
+            // Images have been split into individual characters, need to join and parse
+            const joinedString = parsedProduct.images.join('');
+            console.log('Joined string:', joinedString);
+            try {
+              parsedProduct.images = JSON.parse(joinedString);
+              console.log('Parsed images from character array:', parsedProduct.images);
+            } catch (e) {
+              console.error('Failed to parse images from character array:', e);
+              // Fallback to using thumbnail as the only image
+              parsedProduct.images = [parsedProduct.thumbnail];
+            }
+          }
+        } else if (typeof parsedProduct.images === 'string') {
+          // If images is a string, try to parse it
+          try {
+            parsedProduct.images = JSON.parse(parsedProduct.images);
+            console.log('Parsed images from string:', parsedProduct.images);
+          } catch (e) {
+            console.error('Failed to parse images from string:', e);
+            parsedProduct.images = [parsedProduct.images];
+          }
+        }
+        
+        // Ensure images is an array
+        if (!Array.isArray(parsedProduct.images)) {
+          parsedProduct.images = [parsedProduct.thumbnail];
+        }
+        
+        // Ensure at least thumbnail is in images array
+        if (!parsedProduct.images.includes(parsedProduct.thumbnail)) {
+          parsedProduct.images = [parsedProduct.thumbnail, ...parsedProduct.images];
+        }
+        
+        console.log('Final images array:', parsedProduct.images);
+        setProduct(parsedProduct);
       } catch (err) {
         console.error('Error fetching product:', err);
         setError('Unable to load product details.');

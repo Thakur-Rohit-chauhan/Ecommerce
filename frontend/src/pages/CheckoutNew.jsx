@@ -135,13 +135,58 @@ function CheckoutNew() {
       const order = orderResponse.data;
       console.log('Order data:', order);
 
-      // Order created successfully! Show success popup
-      alert('✅ Order placed successfully!');
+      // Process payment if not manual/cash on delivery
+      if (paymentMethod !== 'manual') {
+        try {
+          // Map payment method to backend enums
+          const paymentMethodMap = {
+            'stripe': 'CREDIT_CARD',
+            'paypal': 'PAYPAL'
+          };
+
+          const paymentProviderMap = {
+            'stripe': 'STRIPE',
+            'paypal': 'PAYPAL'
+          };
+
+          // Create payment intent
+          const paymentIntent = await paymentService.createPaymentIntent({
+            order_id: order.id,
+            amount: calculateTotal(),
+            currency: 'INR',
+            payment_method: paymentMethodMap[paymentMethod],
+            payment_provider: paymentProviderMap[paymentMethod],
+            customer_email: shippingInfo.email,
+            metadata: {
+              order_number: order.order_number || order.id
+            }
+          });
+
+          console.log('Payment intent created:', paymentIntent);
+
+          // For now, if payment intent is created, treat as pending manual confirmation
+          // TODO: Implement actual Stripe/PayPal integration for payment processing
+          alert('✅ Order created! Payment will be processed upon confirmation.');
+        } catch (paymentErr) {
+          console.error('Payment processing error:', paymentErr);
+          // Don't fail the order if payment setup fails - user can pay later
+          alert('⚠️ Order created successfully, but payment setup failed. Please contact support.');
+        }
+      } else {
+        // Manual payment - order is complete
+        alert('✅ Order placed successfully!');
+      }
       
       // Trigger order update event for seller dashboard
       window.dispatchEvent(new CustomEvent('orderPlaced', { 
         detail: { order: order } 
       }));
+
+      // Redirect to orders page after a short delay
+      setTimeout(() => {
+        navigate('/orders');
+      }, 2000);
+
     } catch (err) {
       console.error('Error placing order:', err);
       console.error('Error details:', {
@@ -150,6 +195,7 @@ function CheckoutNew() {
         status: err.response?.status,
         data: err.response?.data
       });
+      console.error('Full error response data:', JSON.stringify(err.response?.data, null, 2));
       
       let errorMessage = 'Failed to place order. Please try again.';
       

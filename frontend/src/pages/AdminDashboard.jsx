@@ -188,7 +188,7 @@ function AdminDashboard() {
             </div>
             <div style={styles.statCard}>
               <h3>Total Revenue</h3>
-              <p style={styles.statValue}>₹{stats.total_revenue?.toFixed(2) || '0.00'}</p>
+              <p style={styles.statValue}>₹{(typeof stats.total_revenue === 'number' || typeof stats.total_revenue === 'string') ? parseFloat(stats.total_revenue).toFixed(2) : '0.00'}</p>
             </div>
           </div>
         )}
@@ -547,6 +547,8 @@ const styles = {
     borderBottom: '2px solid transparent',
     cursor: 'pointer',
     fontWeight: '500',
+    color: '#333333', // Dark gray for visibility
+    transition: 'all 0.2s',
   },
   tabActive: {
     padding: '0.75rem 1.5rem',
