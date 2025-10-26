@@ -17,6 +17,9 @@ function Products() {
   const [sortOption, setSortOption] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showNearby, setShowNearby] = useState(false);
+  const [locationEnabled, setLocationEnabled] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
 
   // Fetch categories & products
   const fetchData = async () => {
@@ -29,14 +32,126 @@ function Products() {
       setCategoryMap(map);
       setCategories(['All', ...catList.map(c => c.name)]);
 
+      // Prepare API parameters
+      const params = {};
+      
+      // Add search parameter if present
+      if (searchQuery) {
+        params.search = searchQuery;
+      }
+
       // Fetch products
-      const prodData = await productService.getAllProducts();
+      console.log('Fetching all products with params:', params);
+      const prodData = await productService.getAllProducts(params);
       setProducts(Array.isArray(prodData.data) ? prodData.data : []);
       setLoading(false);
     } catch (err) {
       console.error('Error fetching data:', err);
       setError('Failed to load products.');
       setLoading(false);
+    }
+  };
+
+  // Fetch products with location filtering
+  const fetchDataWithLocation = async (lat, lon) => {
+    try {
+      setLoading(true);
+      
+      // Fetch categories
+      const catResult = await categoryService.getAllCategories();
+      const catList = catResult.data || [];
+      const map = {};
+      catList.forEach(c => (map[c.id] = c.name));
+      setCategoryMap(map);
+      setCategories(['All', ...catList.map(c => c.name)]);
+
+      // Prepare API parameters with location
+      const params = {
+        user_lat: lat,
+        user_lon: lon,
+        max_distance_km: 200,
+        sort_by_distance: true
+      };
+      
+      // Add search parameter if present
+      if (searchQuery) {
+        params.search = searchQuery;
+      }
+
+      // Fetch products with location filtering
+      console.log('Fetching nearby products with params:', params);
+      const prodData = await productService.getAllProducts(params);
+      console.log('Received products:', prodData.data);
+      setProducts(Array.isArray(prodData.data) ? prodData.data : []);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError('Failed to load products.');
+      setLoading(false);
+    }
+  };
+
+  // Handle nearby products toggle
+  const handleNearbyToggle = async () => {
+    console.log('handleNearbyToggle called, showNearby:', showNearby);
+    
+    if (!showNearby) {
+      // Request location permission
+      if (navigator.geolocation) {
+        console.log('Requesting location permission...');
+        setLoading(true);
+        
+        // Add timeout and error handling options
+        const options = {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        };
+        
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            console.log('Location obtained:', lat, lon);
+            
+            // Set state first
+            setUserLocation({ lat, lon });
+            setLocationEnabled(true);
+            setShowNearby(true);
+            
+            // Fetch with location parameters
+            console.log('Fetching products with location params:', { lat, lon, max_distance_km: 200 });
+            await fetchDataWithLocation(lat, lon);
+          },
+          (err) => {
+            console.error('Error getting location:', err);
+            setLoading(false);
+            
+            let errorMessage = 'Location access denied.';
+            if (err.code === 1) {
+              errorMessage = 'Location access denied by user.';
+            } else if (err.code === 2) {
+              errorMessage = 'Location unavailable.';
+            } else if (err.code === 3) {
+              errorMessage = 'Location request timed out.';
+            }
+            
+            alert(errorMessage);
+          },
+          options
+        );
+      } else {
+        console.error('Geolocation not supported');
+        alert('Geolocation is not supported by this browser.');
+      }
+    } else {
+      // Turn off nearby filtering
+      console.log('Turning off nearby filtering');
+      setShowNearby(false);
+      setLocationEnabled(false);
+      setUserLocation(null);
+      setLoading(true);
+      await fetchData();
     }
   };
 
@@ -94,7 +209,23 @@ function Products() {
               <option value="priceHigh">Price: High to Low</option>
             </select>
           </div>
+
+          <div>
+            <button
+              onClick={handleNearbyToggle}
+              style={showNearby ? styles.nearbyBtnActive : styles.nearbyBtn}
+            >
+              {showNearby ? '📍 Show All Products' : '📍 Show Nearby Products'}
+            </button>
+          </div>
         </div>
+
+        {/* Location Status */}
+        {showNearby && locationEnabled && (
+          <div style={styles.locationBanner}>
+            ✓ Showing products within 200 km of your location
+          </div>
+        )}
 
         {/* Loading / Error / Product Grid */}
         {loading && <p>Loading products...</p>}
@@ -138,8 +269,38 @@ const styles = {
     marginBottom: '1.5rem',
     flexWrap: 'wrap',
     gap: '1rem',
+    alignItems: 'center',
   },
   select: { padding: '0.5rem', fontSize: '1rem', marginLeft: '0.5rem' },
+  nearbyBtn: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#dc3545',
+    color: 'white',
+    border: 'none',
+    borderRadius: '5px',
+    cursor: 'pointer',
+    fontSize: '0.9rem',
+    fontWeight: '500',
+  },
+  nearbyBtnActive: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#28a745',
+    color: 'white',
+    border: 'none',
+    borderRadius: '5px',
+    cursor: 'pointer',
+    fontSize: '0.9rem',
+    fontWeight: '500',
+  },
+  locationBanner: {
+    backgroundColor: '#d4edda',
+    color: '#155724',
+    padding: '0.75rem',
+    borderRadius: '5px',
+    marginBottom: '1rem',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
   productGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',

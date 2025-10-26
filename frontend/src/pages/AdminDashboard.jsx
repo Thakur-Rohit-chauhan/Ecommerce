@@ -204,6 +204,18 @@ function AdminDashboard() {
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
+          <button
+            style={styles.tab}
+            onClick={() => navigate('/cart')}
+          >
+            My Cart
+          </button>
+          <button
+            style={styles.tab}
+            onClick={() => navigate('/orders')}
+          >
+            My Orders
+          </button>
         </div>
 
         {/* Tab Content */}

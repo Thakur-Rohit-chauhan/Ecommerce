@@ -5,6 +5,7 @@ from src.auth.user.schema import UserCreate, UserUpdate, UserLogin, PasswordChan
 from src.auth.utils import get_password_hash, verify_password, create_access_token
 from src.auth.verification_models import EmailVerificationToken
 from src.common.email_service import EmailService
+from src.common.geocoding_service import GeocodingService
 from src.cart.models import Cart
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
@@ -104,11 +105,27 @@ class UserService:
             if username_result.scalar_one_or_none():
                 raise ConflictError(f"User with username '{user.username}' already exists")
             
+            # Geocode address if provided (for sellers)
+            lat, lon = None, None
+            if hasattr(user, 'address') and user.address:
+                print(f"Geocoding address for user: {user.address}")
+                lat, lon = GeocodingService.geocode_address(user.address)
+                if lat and lon:
+                    print(f"Successfully geocoded: lat={lat}, lon={lon}")
+                else:
+                    print(f"Failed to geocode address: {user.address}")
+            
             # Create user
             user_dict = user.model_dump(exclude={"password"})
             # password = user.password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
             user_dict["hashed_password"] = get_password_hash(user.password)
             user_dict["is_verified"] = False  # User must verify email
+            
+            # Add geocoded coordinates if available
+            if lat is not None:
+                user_dict["latitude"] = lat
+            if lon is not None:
+                user_dict["longitude"] = lon
             
             db_user = User(**user_dict)
             db.add(db_user)
@@ -189,8 +206,20 @@ class UserService:
                     raise ConflictError(f"User with username '{user_update.username}' already exists")
             
             # Update fields
-            for key, value in user_update.model_dump(exclude_unset=True).items():
+            update_dict = user_update.model_dump(exclude_unset=True)
+            for key, value in update_dict.items():
                 setattr(db_user, key, value)
+            
+            # Geocode address if it's being updated
+            if 'address' in update_dict and update_dict['address']:
+                print(f"Geocoding updated address for user {user_id}: {update_dict['address']}")
+                lat, lon = GeocodingService.geocode_address(update_dict['address'])
+                if lat and lon:
+                    print(f"Successfully geocoded: lat={lat}, lon={lon}")
+                    setattr(db_user, 'latitude', lat)
+                    setattr(db_user, 'longitude', lon)
+                else:
+                    print(f"Failed to geocode address: {update_dict['address']}")
             
             db_user.updated_at = datetime.utcnow()
             

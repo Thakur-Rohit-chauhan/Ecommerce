@@ -10,7 +10,6 @@ function Cart() {
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [debugInfo, setDebugInfo] = useState("");
 
   useEffect(() => {
     fetchCart();
@@ -43,7 +42,6 @@ function Cart() {
       console.log('Cart data:', cartData);
       console.log('Cart items:', cartData.cart_items);
 
-      setDebugInfo(`Cart ID: ${cartData.id}, Items: ${cartData.cart_items?.length || 0}`);
       setCart(cartData);
       setCartItems(cartData.cart_items || []);
     } catch (err) {
@@ -135,11 +133,9 @@ function Cart() {
       <Navbar />
       <div style={styles.container}>
         <h1>My Cart</h1>
-        {debugInfo && <p style={{ color: 'blue', fontSize: '0.9rem' }}>{debugInfo}</p>}
         {cartItems.length === 0 ? (
           <div>
             <p>Your cart is empty.</p>
-            {cart && <p style={{ color: 'gray', fontSize: '0.9rem' }}>Cart ID: {cart.id}</p>}
           </div>
         ) : (
           <div style={styles.cartWrapper}>
