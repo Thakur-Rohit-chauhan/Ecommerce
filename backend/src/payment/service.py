@@ -33,21 +33,32 @@ class PaymentService:
         """Initialize payment providers based on configuration"""
         providers = {}
         
-        # Stripe provider
-        if Config.STRIPE_SECRET_KEY:
-            providers['stripe'] = StripeProvider({
-                'secret_key': Config.STRIPE_SECRET_KEY,
-                'webhook_secret': Config.STRIPE_WEBHOOK_SECRET
-            })
-        
-        # PayPal provider
-        if Config.PAYPAL_CLIENT_ID:
-            providers['paypal'] = PayPalProvider({
-                'client_id': Config.PAYPAL_CLIENT_ID,
-                'client_secret': Config.PAYPAL_CLIENT_SECRET,
-                'mode': Config.PAYPAL_MODE or 'sandbox',
-                'webhook_id': Config.PAYPAL_WEBHOOK_ID
-            })
+        # Check if we're in simulation mode
+        if Config.PAYMENT_SIMULATION_MODE:
+            # Use mock providers for simulation (no API keys needed)
+            from src.payment.providers.mock_stripe_provider import MockStripeProvider
+            from src.payment.providers.mock_paypal_provider import MockPayPalProvider
+            
+            logger.info("Payment simulation mode enabled - using mock providers")
+            providers['stripe'] = MockStripeProvider({})
+            providers['paypal'] = MockPayPalProvider({})
+        else:
+            # Use real providers (only if API keys are configured)
+            # Stripe provider
+            if Config.STRIPE_SECRET_KEY:
+                providers['stripe'] = StripeProvider({
+                    'secret_key': Config.STRIPE_SECRET_KEY,
+                    'webhook_secret': Config.STRIPE_WEBHOOK_SECRET
+                })
+            
+            # PayPal provider
+            if Config.PAYPAL_CLIENT_ID:
+                providers['paypal'] = PayPalProvider({
+                    'client_id': Config.PAYPAL_CLIENT_ID,
+                    'client_secret': Config.PAYPAL_CLIENT_SECRET,
+                    'mode': Config.PAYPAL_MODE or 'sandbox',
+                    'webhook_id': Config.PAYPAL_WEBHOOK_ID
+                })
         
         # Manual provider (always available)
         providers['manual'] = ManualProvider({
@@ -137,7 +148,25 @@ class PaymentService:
             await db.commit()
             await db.refresh(payment)
             
-            return PaymentResponse.from_orm(payment)
+            # Manually convert UUID fields to strings for response
+            return PaymentResponse(
+                id=str(payment.id),
+                payment_number=payment.payment_number,
+                order_id=str(payment.order_id),
+                amount=payment.amount,
+                currency=payment.currency,
+                payment_method=payment.payment_method,
+                payment_provider=payment.payment_provider,
+                status=payment.status,
+                provider_payment_id=payment.provider_payment_id,
+                payment_intent_id=payment.payment_intent_id,
+                client_secret=payment.client_secret,
+                failure_reason=payment.failure_reason,
+                created_at=payment.created_at,
+                updated_at=payment.updated_at,
+                processed_at=payment.processed_at,
+                completed_at=payment.completed_at
+            )
             
         except Exception as e:
             await db.rollback()
@@ -199,7 +228,25 @@ class PaymentService:
             await db.commit()
             await db.refresh(payment)
             
-            return PaymentResponse.from_orm(payment)
+            # Manually convert UUID fields to strings for response
+            return PaymentResponse(
+                id=str(payment.id),
+                payment_number=payment.payment_number,
+                order_id=str(payment.order_id),
+                amount=payment.amount,
+                currency=payment.currency,
+                payment_method=payment.payment_method,
+                payment_provider=payment.payment_provider,
+                status=payment.status,
+                provider_payment_id=payment.provider_payment_id,
+                payment_intent_id=payment.payment_intent_id,
+                client_secret=payment.client_secret,
+                failure_reason=payment.failure_reason,
+                created_at=payment.created_at,
+                updated_at=payment.updated_at,
+                processed_at=payment.processed_at,
+                completed_at=payment.completed_at
+            )
             
         except Exception as e:
             await db.rollback()
@@ -226,7 +273,25 @@ class PaymentService:
                 detail="You can only view your own payments"
             )
         
-        return PaymentResponse.from_orm(payment)
+        # Manually convert UUID fields to strings for response
+        return PaymentResponse(
+            id=str(payment.id),
+            payment_number=payment.payment_number,
+            order_id=str(payment.order_id),
+            amount=payment.amount,
+            currency=payment.currency,
+            payment_method=payment.payment_method,
+            payment_provider=payment.payment_provider,
+            status=payment.status,
+            provider_payment_id=payment.provider_payment_id,
+            payment_intent_id=payment.payment_intent_id,
+            client_secret=payment.client_secret,
+            failure_reason=payment.failure_reason,
+            created_at=payment.created_at,
+            updated_at=payment.updated_at,
+            processed_at=payment.processed_at,
+            completed_at=payment.completed_at
+        )
     
     async def get_user_payments(
         self,
@@ -257,8 +322,31 @@ class PaymentService:
         count_result = await db.execute(count_query)
         total = len(count_result.scalars().all())
         
+        # Manually convert UUID fields to strings for each payment
+        payment_responses = [
+            PaymentResponse(
+                id=str(payment.id),
+                payment_number=payment.payment_number,
+                order_id=str(payment.order_id),
+                amount=payment.amount,
+                currency=payment.currency,
+                payment_method=payment.payment_method,
+                payment_provider=payment.payment_provider,
+                status=payment.status,
+                provider_payment_id=payment.provider_payment_id,
+                payment_intent_id=payment.payment_intent_id,
+                client_secret=payment.client_secret,
+                failure_reason=payment.failure_reason,
+                created_at=payment.created_at,
+                updated_at=payment.updated_at,
+                processed_at=payment.processed_at,
+                completed_at=payment.completed_at
+            )
+            for payment in payments
+        ]
+        
         return {
-            "payments": [PaymentResponse.from_orm(payment) for payment in payments],
+            "payments": payment_responses,
             "total": total,
             "page": page,
             "limit": limit,

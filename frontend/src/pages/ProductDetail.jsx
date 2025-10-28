@@ -11,6 +11,7 @@ function ProductDetail() {
   const [currentImage, setCurrentImage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [validImages, setValidImages] = useState([]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -21,47 +22,47 @@ function ProductDetail() {
         console.log('Images type:', typeof result.data.images);
         console.log('Thumbnail:', result.data.thumbnail);
         
-        // Handle images array - it might be a stringified JSON or already an array
+        // Handle images - backend sends as JSON string or array
         let parsedProduct = { ...result.data };
         
-        if (Array.isArray(parsedProduct.images)) {
-          // If it's already an array, check if it's been split into characters
-          if (parsedProduct.images.length > 0 && typeof parsedProduct.images[0] === 'string' && parsedProduct.images[0].length === 1) {
-            // Images have been split into individual characters, need to join and parse
-            const joinedString = parsedProduct.images.join('');
-            console.log('Joined string:', joinedString);
-            try {
-              parsedProduct.images = JSON.parse(joinedString);
-              console.log('Parsed images from character array:', parsedProduct.images);
-            } catch (e) {
-              console.error('Failed to parse images from character array:', e);
-              // Fallback to using thumbnail as the only image
-              parsedProduct.images = [parsedProduct.thumbnail];
-            }
-          }
-        } else if (typeof parsedProduct.images === 'string') {
-          // If images is a string, try to parse it
+        // Parse images if it's a string
+        if (typeof parsedProduct.images === 'string') {
           try {
+            // Try to parse as JSON string
             parsedProduct.images = JSON.parse(parsedProduct.images);
-            console.log('Parsed images from string:', parsedProduct.images);
+            console.log('Parsed images from JSON string:', parsedProduct.images);
           } catch (e) {
-            console.error('Failed to parse images from string:', e);
-            parsedProduct.images = [parsedProduct.images];
+            console.error('Failed to parse images, using thumbnail only:', e);
+            // If parsing fails, use thumbnail as the only image
+            parsedProduct.images = [parsedProduct.thumbnail];
           }
         }
         
-        // Ensure images is an array
+        // If images is not an array at this point, make it one with thumbnail
         if (!Array.isArray(parsedProduct.images)) {
+          console.warn('Images is not an array, using thumbnail');
           parsedProduct.images = [parsedProduct.thumbnail];
         }
         
-        // Ensure at least thumbnail is in images array
-        if (!parsedProduct.images.includes(parsedProduct.thumbnail)) {
+        // Filter out empty strings and ensure valid URLs
+        parsedProduct.images = parsedProduct.images.filter(img => img && typeof img === 'string' && img.trim().length > 0);
+        
+        // If no valid images after filtering, use thumbnail
+        if (parsedProduct.images.length === 0) {
+          console.warn('No valid images found, using thumbnail');
+          parsedProduct.images = [parsedProduct.thumbnail];
+        }
+        
+        // Ensure thumbnail is first in the array if not already there
+        if (parsedProduct.thumbnail && !parsedProduct.images.includes(parsedProduct.thumbnail)) {
           parsedProduct.images = [parsedProduct.thumbnail, ...parsedProduct.images];
         }
         
-        console.log('Final images array:', parsedProduct.images);
+        console.log('Final parsed images:', parsedProduct.images);
         setProduct(parsedProduct);
+        
+        // Validate images - only keep URLs that can be loaded
+        validateImages(parsedProduct.images, parsedProduct.thumbnail);
       } catch (err) {
         console.error('Error fetching product:', err);
         setError('Unable to load product details.');
@@ -71,6 +72,37 @@ function ProductDetail() {
     };
     fetchProduct();
   }, [id]);
+
+  // Function to validate and filter working image URLs
+  const validateImages = async (images, thumbnail) => {
+    const validUrls = [];
+    
+    for (const imageUrl of images) {
+      try {
+        // Test if image can be loaded
+        await new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(imageUrl);
+          img.onerror = () => reject();
+          img.src = imageUrl;
+          // Timeout after 3 seconds
+          setTimeout(() => reject(), 3000);
+        });
+        validUrls.push(imageUrl);
+        console.log('Valid image:', imageUrl);
+      } catch {
+        console.log('Invalid/broken image, skipping:', imageUrl);
+      }
+    }
+    
+    // If no valid images found, use thumbnail
+    if (validUrls.length === 0 && thumbnail) {
+      validUrls.push(thumbnail);
+    }
+    
+    console.log('Valid images after filtering:', validUrls);
+    setValidImages(validUrls);
+  };
 
   const handleAddToCart = async () => {
     if (!authService.isAuthenticated()) {
@@ -144,17 +176,17 @@ function ProductDetail() {
       <div style={styles.container}>
         <div style={styles.left}>
           <img
-            src={product.images?.[currentImage] || product.thumbnail || 'https://via.placeholder.com/400'}
+            src={validImages[currentImage] || product.thumbnail || 'https://via.placeholder.com/400'}
             alt={product.title}
             style={styles.mainImage}
           />
-          {product.images && product.images.length > 1 && (
+          {validImages.length > 1 && (
             <div style={styles.thumbnailContainer}>
-              {product.images.map((img, idx) => (
+              {validImages.map((img, idx) => (
                 <img
                   key={idx}
                   src={img}
-                  alt={`Thumbnail ${idx + 1}`}
+                  alt={`${product.title} - Image ${idx + 1}`}
                   style={{
                     ...styles.thumbnail,
                     border: idx === currentImage ? '2px solid #ffcc00' : '1px solid #ccc',

@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     # Manual payments
     MANUAL_PAYMENT_AUTO_APPROVE: bool = False
     
+    # Payment simulation mode (True = mock providers, False = real providers)
+    PAYMENT_SIMULATION_MODE: bool = True
+    
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore"

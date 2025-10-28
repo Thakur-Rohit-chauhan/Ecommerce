@@ -11,7 +11,7 @@ function Signup() {
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
-  const [role, setRole] = useState('user'); // 'user' or 'seller'
+  const [role, setRole] = useState('normal_user'); // 'normal_user' or 'seller'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -136,7 +136,7 @@ function Signup() {
                 style={styles.input}
                 disabled={loading}
               >
-                <option value="user">Customer</option>
+                <option value="normal_user">Customer</option>
                 <option value="seller">Seller</option>
               </select>
               <textarea

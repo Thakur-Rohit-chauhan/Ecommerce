@@ -44,11 +44,11 @@ class OrderNotificationService:
                 <tr>
                     <td style="padding: 8px; border-bottom: 1px solid #eee;">{item.product_name}</td>
                     <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">{item.quantity}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${item.product_price:.2f}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${item.subtotal:.2f}</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">Rs. {item.product_price:.2f}</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">Rs. {item.subtotal:.2f}</td>
                 </tr>
                 """
-                items_text += f"{item.product_name} - Qty: {item.quantity} - ${item.subtotal:.2f}\n"
+                items_text += f"{item.product_name} - Qty: {item.quantity} - Rs. {item.subtotal:.2f}\n"
             
             # Plain text version
             body = f"""
@@ -66,10 +66,10 @@ Items Ordered:
 {items_text}
 
 Order Summary:
-Subtotal: ${order.subtotal:.2f}
-Tax: ${order.tax_amount:.2f}
-Shipping: ${order.shipping_cost:.2f}
-Total: ${order.total_amount:.2f}
+Subtotal: Rs. {order.subtotal:.2f}
+Tax: Rs. {order.tax_amount:.2f}
+Shipping: Rs. {order.shipping_cost:.2f}
+Total: Rs. {order.total_amount:.2f}
 
 Shipping Address:
 {order.shipping_address}
@@ -182,10 +182,10 @@ Artisans Alley Team
         
         <div class="total-section">
             <h3>Order Summary</h3>
-            <p><strong>Subtotal:</strong> ${order.subtotal:.2f}</p>
-            <p><strong>Tax:</strong> ${order.tax_amount:.2f}</p>
-            <p><strong>Shipping:</strong> ${order.shipping_cost:.2f}</p>
-            <p style="font-size: 18px; font-weight: bold; color: #4CAF50;"><strong>Total: ${order.total_amount:.2f}</strong></p>
+            <p><strong>Subtotal:</strong> Rs. {order.subtotal:.2f}</p>
+            <p><strong>Tax:</strong> Rs. {order.tax_amount:.2f}</p>
+            <p><strong>Shipping:</strong> Rs. {order.shipping_cost:.2f}</p>
+            <p style="font-size: 18px; font-weight: bold; color: #4CAF50;"><strong>Total: Rs. {order.total_amount:.2f}</strong></p>
         </div>
         
         <div class="order-info">
@@ -264,7 +264,7 @@ Updated: {datetime.utcnow().strftime('%B %d, %Y at %I:%M %p')}
 
 {message}
 
-Order Total: ${order.total_amount:.2f}
+Order Total: Rs. {order.total_amount:.2f}
 
 You can track your order status by logging into your account.
 
@@ -340,7 +340,7 @@ Artisans Alley Team
         <div class="order-info">
             <h3>Order Information</h3>
             <p><strong>Order Number:</strong> {order.order_number}</p>
-            <p><strong>Order Total:</strong> ${order.total_amount:.2f}</p>
+            <p><strong>Order Total:</strong> Rs. {order.total_amount:.2f}</p>
         </div>
         
         <p>{message}</p>
@@ -443,10 +443,10 @@ Artisans Alley Team
                 <tr>
                     <td style="padding: 8px; border-bottom: 1px solid #eee;">{item.product_name}</td>
                     <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">{item.quantity}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${item.subtotal:.2f}</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">Rs. {item.subtotal:.2f}</td>
                 </tr>
                 """
-                items_text += f"{item.product_name} - Qty: {item.quantity} - ${item.subtotal:.2f}\n"
+                items_text += f"{item.product_name} - Qty: {item.quantity} - Rs. {item.subtotal:.2f}\n"
             
             # Plain text version
             body = f"""
@@ -631,7 +631,7 @@ Great news! Your payment has been confirmed.
 
 Order Details:
 Order Number: {order.order_number}
-Payment Amount: ${order.total_amount:.2f}
+Payment Amount: Rs. {order.total_amount:.2f}
 Payment Date: {datetime.utcnow().strftime('%B %d, %Y at %I:%M %p')}
 Payment Status: {order.payment_status.value.title()}
 
@@ -701,7 +701,7 @@ Artisans Alley Team
         
         <div class="payment-info">
             <h2>✅ Payment Confirmed</h2>
-            <p style="font-size: 24px; font-weight: bold; color: #4CAF50;">${order.total_amount:.2f}</p>
+            <p style="font-size: 24px; font-weight: bold; color: #4CAF50;">Rs. {order.total_amount:.2f}</p>
         </div>
         
         <div class="order-info">

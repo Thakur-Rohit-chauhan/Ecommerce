@@ -142,7 +142,7 @@ class CartCheckoutService:
                 payment_method=checkout_data.payment_method,
                 payment_provider=checkout_data.payment_provider,
                 customer_email=checkout_data.customer_email or current_user.email,
-                customer_name=checkout_data.customer_name or f"{current_user.first_name} {current_user.last_name}",
+                customer_name=checkout_data.customer_name or current_user.full_name,
                 metadata={
                     'order_number': order.order_number,
                     'cart_id': checkout_data.cart_id,
