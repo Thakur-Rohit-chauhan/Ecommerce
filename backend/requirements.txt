@@ -19,6 +19,7 @@ annotated-types==0.7.0
 # Security and authentication
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+bcrypt==4.0.1    
 
 # Environment and configuration
 python-dotenv==1.1.1
@@ -63,7 +64,7 @@ watchfiles==1.1.0
 websockets==15.0.1
 
 # Performance
-uvloop==0.21.0
+# uvloop==0.21.0
 
 # Monitoring and logging
 sentry-sdk==2.39.0
