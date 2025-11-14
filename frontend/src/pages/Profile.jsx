@@ -92,7 +92,11 @@ function Profile() {
       const res = await fetch('http://127.0.0.1:8000/users/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(passwords),
+        // body: JSON.stringify(passwords),
+        body: JSON.stringify({
+          current_password: passwords.oldPassword,
+          new_password: passwords.newPassword
+        }),
       });
       if (!res.ok) throw new Error('Password change failed.');
       alert('Password changed!');
