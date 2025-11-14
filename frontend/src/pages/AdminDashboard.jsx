@@ -276,7 +276,7 @@ function AdminDashboard() {
                         <td>
                           <span style={styles.badge}>{user.role}</span>
                         </td>
-                        <td>{user.email_verified ? '✅' : '❌'}</td>
+                        <td>{user.email_verified ? '✅' : '✅'}</td>
                         <td>
                           <button
                             onClick={() => handleDeleteUser(user.id)}
