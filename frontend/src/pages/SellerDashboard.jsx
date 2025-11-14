@@ -439,14 +439,14 @@ function SellerDashboard() {
                       style={{ ...styles.input, gridColumn: '1 / -1' }}
                       required
                     />
-                    <input
+                    {/* <input
                       type="text"
                       name="images"
                       placeholder="Image URLs (comma-separated)"
                       value={productForm.images}
                       onChange={handleProductFormChange}
                       style={{ ...styles.input, gridColumn: '1 / -1' }}
-                    />
+                    /> */}
                   </div>
                   <div style={styles.modalActions}>
                     <button onClick={() => setShowProductForm(false)} style={styles.cancelButton}>

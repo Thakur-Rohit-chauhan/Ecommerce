@@ -318,7 +318,7 @@ const styles = {
   image: {
     width: '100%',
     height: '180px',
-    objectFit: 'cover',
+    objectFit: 'contain',
     borderRadius: '10px',
     marginBottom: '0.5rem',
   },

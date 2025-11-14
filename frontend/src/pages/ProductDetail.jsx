@@ -251,9 +251,10 @@ const styles = {
   thumbnail: {
     width: '60px',
     height: '60px',
-    objectFit: 'cover',
+    objectFit: 'contain',
     borderRadius: '4px',
     cursor: 'pointer',
+    backgroundColor: '#f5f5f5',
   },
   right: { flex: '1 1 400px' },
   button: {
